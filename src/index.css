@@ -1,0 +1,76 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=DM+Serif+Display:ital@0;1&family=Space+Mono:wght@400;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-background: hsl(0 0% 0%);
+  --color-foreground: hsl(0 0% 100%);
+  --color-primary: hsl(0 0% 0%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(0 0% 10%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  --color-tertiary: hsl(0 0% 20%);
+  --color-tertiary-foreground: hsl(0 0% 100%);
+  --color-neutral: hsl(0 0% 96%);
+  --color-neutral-foreground: hsl(0 0% 4%);
+  --color-muted: hsl(0 0% 10%);
+  --color-muted-foreground: hsl(0 0% 70%);
+  --color-border: hsl(0 0% 20%);
+  --color-input: hsl(0 0% 20%);
+  --color-ring: hsl(0 0% 100%);
+  --color-success: hsl(141 63% 47%);
+  --color-warning: hsl(38 92% 50%);
+  --color-primary-cta: hsl(0 0% 100%);
+  --color-primary-cta-foreground: hsl(0 0% 0%);
+  --color-secondary-cta: hsl(0 0% 10%);
+  --color-secondary-cta-foreground: hsl(0 0% 100%);
+  --gradient-1: linear-gradient(135deg, hsl(0 0% 0%) 0%, hsl(0 0% 20%) 100%);
+  --gradient-2: linear-gradient(180deg, hsl(0 0% 8%) 0%, hsl(0 0% 0%) 100%);
+  --button-border-gradient: linear-gradient(
+    90deg,
+    hsl(0 0% 100%) 0%,
+    hsl(0 0% 60%) 100%
+  );
+  --radius: 0.5rem;
+  --font-sans: "Inter", sans-serif;
+  --font-heading: "DM Serif Display", serif;
+  --font-mono: "Space Mono", monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply bg-background text-foreground scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  a,
+  li,
+  label,
+  input,
+  textarea,
+  button,
+  div {
+    color: inherit;
+  }
+
+  ::selection {
+    @apply bg-foreground text-background;
+  }
+}
