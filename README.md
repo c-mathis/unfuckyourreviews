@@ -3,31 +3,32 @@
 
 A landing page for review management services - helping businesses fix their Google review problems.
 
-## Getting started
+## Static Site
 
-> **Prerequisites:**
-> The following steps require [NodeJS](https://nodejs.org/en/) to be installed on your system, so please
-> install it beforehand if you haven't already.
+This is a simple static HTML/CSS/JS site with no build process required.
 
-To get started with your project, you'll first need to install the dependencies with:
+**Files:**
+- `index.html` - Main page
+- `style.css` - Styles
+- `script.js` - Interaction logic
 
+## Local Development
+
+Just open `index.html` in your browser, or use any simple HTTP server:
+
+```bash
+python -m http.server 8000
+# or
+npx serve .
 ```
-npm install
-```
 
-Then, you'll be able to run a development version of the project with:
+## Deployment
 
-```
-npm run dev
-```
+Deploy directly to Cloudflare Pages:
+1. Push to GitHub
+2. Connect repo to Cloudflare Pages
+3. Set build command: (leave empty)
+4. Set build output directory: `/`
+5. Deploy
 
-After a few seconds, your project should be accessible at the address
-[http://localhost:5173/](http://localhost:5173/)
-
-
-If you are satisfied with the result, you can finally build the project for release with:
-
-```
-npm run build
-```
-      
+No build step needed - it's just static files.
