@@ -1,0 +1,19 @@
+name = "unfuck-leads-worker"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "unfuck-leads"
+database_id = "20ec98a7-8f00-48ed-938a-bc1c4946bf40"
+
+# Routes - these will handle all form submissions
+[[routes]]
+pattern = "leads.unfuckyourweb.com/*"
+zone_name = "unfuckyourweb.com"
+
+# You can add more routes as you add more "Unfuck" properties
+# [[routes]]
+# pattern = "leads.unfuckyourreviews.com/*"
+# zone_name = "unfuckyourreviews.com"

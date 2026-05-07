@@ -8,7 +8,7 @@ const CONFIG = {
     // 1. FormSubmit: 'https://formsubmit.co/your@email.com'
     // 2. Formspree: 'https://formspree.io/f/YOUR_FORM_ID'
     // 3. Your custom backend: 'https://yourapi.com/submit'
-    formEndpoint: 'https://formsubmit.co/your@email.com', // CHANGE THIS
+    formEndpoint: 'https://leads.unfuckyourweb.com/submit',
 
     // Success message shown after form submission
     successMessage: "Got it. We'll get back to you within 24 hours.",

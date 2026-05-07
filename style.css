@@ -73,9 +73,9 @@ body {
 }
 
 .hero h1 {
-    font-size: clamp(6rem, 10vw, 8rem);
+    font-size: clamp(3.5rem, 10vw, 8rem);
     font-weight: var(--font-weight-medium);
-    line-height: 1;
+    line-height: 1.25;
     margin-bottom: var(--spacing-md);
     letter-spacing: -0.02em;
 }
