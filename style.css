@@ -73,9 +73,9 @@ body {
 }
 
 .hero h1 {
-    font-size: clamp(3.5rem, 10vw, 8rem);
+    font-size: clamp(6rem, 10vw, 8rem);
     font-weight: var(--font-weight-medium);
-    line-height: 1.25;
+    line-height: 1;
     margin-bottom: var(--spacing-md);
     letter-spacing: -0.02em;
 }
@@ -223,7 +223,8 @@ body {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
     width: 100%;
     background-color: transparent;
     border: none;
@@ -234,8 +235,23 @@ body {
     font-family: var(--font-main);
 }
 
+.form-group select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    padding-right: 2rem;
+}
+
+.form-group select option {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
     outline: none;
     border-bottom-color: #ffffff;
     background-color: rgba(255, 255, 255, 0.02);
@@ -329,7 +345,8 @@ body {
     }
 
     .form-group input,
-    .form-group textarea {
+    .form-group textarea,
+    .form-group select {
         padding: 0.5rem 0;
     }
 }

@@ -79,9 +79,9 @@
     <section class="cta-section">
         <div class="container">
             <div class="cta-content">
-                <h2>If you made it this far, you're probably f*cked.</h2>
+                <h2>If you made it this far, you're probably fucked.</h2>
 
-                <p class="cta-warning">Despite the attitude, we're here to help.</p>
+                <p class="cta-warning">Jokes aside, we're here to help.</p>
             </div>
 
             <form id="contactForm" class="contact-form">
@@ -98,17 +98,22 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="website">Your Google Business Profile URL (if you have one)</label>
-                    <input type="url" id="website" name="website" placeholder="https://">
+                    <label for="business">Your Business Name</label>
+                    <input type="text" id="business" name="business" placeholder="e.g. Smith's Plumbing" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="problem">What's fucked?</label>
-                    <textarea id="problem" name="problem" rows="5" placeholder="Be specific. The more you tell us, the faster we can fix it." required></textarea>
+                    <label for="situation">What's your review situation?</label>
+                    <select id="situation" name="situation" required>
+                        <option value="">Select one...</option>
+                        <option value="bad-reviews">Bad reviews</option>
+                        <option value="few-reviews">Few reviews</option>
+                        <option value="both">Both</option>
+                    </select>
                 </div>
 
                 <button type="submit" class="submit-button">
-                    <span class="button-text">UNF*CK YOUR REVIEWS</span>
+                    <span class="button-text">UNFUCK YOUR REVIEWS</span>
                     <span class="button-loader" style="display: none;">Sending...</span>
                 </button>
 

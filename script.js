@@ -227,6 +227,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // CONSOLE EASTER EGG
 // ============================================
 
-console.log('%c🔥 Is Your Website Fucked? 🔥', 'font-size: 24px; font-weight: bold; color: #FF0000;');
+console.log('%c⭐ Are Your Reviews Fucked? ⭐', 'font-size: 24px; font-weight: bold; color: #FF0000;');
 console.log('%cIf you\'re looking at this, you probably know what you\'re doing.', 'font-size: 14px;');
 console.log('%cWant to work with us? Shoot us an email.', 'font-size: 14px;');
