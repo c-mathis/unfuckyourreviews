@@ -73,8 +73,7 @@ body {
 
 .hero .container {
     max-width: 900px;
-    margin-left: 0;
-    margin-right: auto;
+    margin: 0 auto;
 }
 
 .hero h1 {
@@ -100,8 +99,7 @@ body {
 
 .list-section .container {
     max-width: 900px;
-    margin-left: 0;
-    margin-right: auto;
+    margin: 0 auto;
 }
 
 .intro-text {
@@ -152,8 +150,7 @@ body {
 
 .cta-section .container {
     max-width: 800px;
-    margin-left: 0;
-    margin-right: auto;
+    margin: 0 auto;
 }
 
 .cta-content {
