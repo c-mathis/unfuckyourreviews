@@ -71,6 +71,10 @@ body {
     padding: var(--spacing-lg) 0;
 }
 
+.hero .container {
+    max-width: 900px;
+}
+
 .hero h1 {
     font-size: clamp(6rem, 10vw, 8rem);
     font-weight: var(--font-weight-medium);
@@ -92,6 +96,10 @@ body {
     padding: var(--spacing-lg) 0;
 }
 
+.list-section .container {
+    max-width: 900px;
+}
+
 .intro-text {
     margin-bottom: var(--spacing-md);
 }
@@ -104,7 +112,6 @@ body {
 
 .fucked-list {
     list-style: none;
-    max-width: 900px;
     margin: 0 auto;
 }
 
@@ -139,9 +146,12 @@ body {
     padding: var(--spacing-lg) 0;
 }
 
+.cta-section .container {
+    max-width: 800px;
+}
+
 .cta-content {
     text-align: left;
-    max-width: 800px;
     margin: 0 auto;
 }
 
