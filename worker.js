@@ -536,13 +536,13 @@ Hey ${formData.name.split(' ')[0]},
 
 Got your submission.
 
-I'm pulling up your Google reviews right now and I'll send you a personalized video breakdown within 24 hours showing exactly what's fixable.
+I'm checking out your reviews right now. I've got a video coming your way in about 24 hours. Will breakdown the situation and how we can fix it.
 
-If you want to hop on a quick call before that, just reply to this email.
+I'll hit you up shortly.
 
+To unfuckery and beyond,
 — Cameron
-Unfuck Your Reviews
-unfuckyourreviews.com
+
 `.trim();
 
     // Send via Resend API
@@ -556,7 +556,7 @@ unfuckyourreviews.com
         from: 'Cameron from Unfuck Your Reviews <cameron@unfuckyourreviews.com>',
         to: [formData.email],
         reply_to: 'cameron@axesagency.com',
-        subject: 'Got it - looking at your reviews now',
+        subject: 'So your reviews are fucked?',
         text: emailBody
       })
     });
