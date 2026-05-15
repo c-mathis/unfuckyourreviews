@@ -72,12 +72,15 @@ async function handleFormSubmission(request, env, ctx, corsHeaders) {
         formData[key] = value;
       }
     } else {
-      return new Response('Unsupported Content-Type', { status: 415 });
+      return new Response(JSON.stringify({ error: 'Unsupported Content-Type' }), {
+        status: 415,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Validate required fields
     if (!formData.name || !formData.email) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+      return new Response(JSON.stringify({ error: 'Missing required fields: name and email' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -101,32 +104,44 @@ async function handleFormSubmission(request, env, ctx, corsHeaders) {
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Insert into D1 database
-    const result = await env.DB.prepare(`
-      INSERT INTO leads (
-        source, name, email, phone, website, problem,
-        selected_issues, issues_count,
-        utm_source, utm_medium, utm_campaign, utm_content,
-        referrer, landing_page,
-        ip_address, user_agent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      source,
-      formData.name,
-      formData.email,
-      formData.phone || null,
-      formData.website || null,
-      formData.gbp_url || null,  // Store GBP URL in 'problem' field temporarily
-      formData.selected_issues || null,
-      parseInt(formData.issues_count) || 0,
-      formData.utm_source || null,
-      formData.utm_medium || null,
-      formData.utm_campaign || null,
-      formData.utm_content || null,
-      formData.referrer || null,
-      formData.landing_page || null,
-      ipAddress,
-      userAgent
-    ).run();
+    let result;
+    try {
+      result = await env.DB.prepare(`
+        INSERT INTO leads (
+          source, name, email, phone, website, problem,
+          selected_issues, issues_count,
+          utm_source, utm_medium, utm_campaign, utm_content,
+          referrer, landing_page,
+          ip_address, user_agent
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        source,
+        formData.name,
+        formData.email,
+        formData.phone || null,
+        formData.business || formData.website || null,  // Business name in website field
+        formData.situation || formData.gbp_url || formData.problem || null,  // Review situation
+        formData.selected_issues || null,
+        parseInt(formData.issues_count) || 0,
+        formData.utm_source || null,
+        formData.utm_medium || null,
+        formData.utm_campaign || null,
+        formData.utm_content || null,
+        formData.referrer || null,
+        formData.landing_page || null,
+        ipAddress,
+        userAgent
+      ).run();
+    } catch (dbError) {
+      console.error('D1 Insert Error:', dbError);
+      return new Response(JSON.stringify({
+        error: 'Database error',
+        details: dbError.message || dbError.toString()
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     // Log activity
     await env.DB.prepare(`
