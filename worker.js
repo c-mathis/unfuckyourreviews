@@ -146,6 +146,13 @@ async function handleFormSubmission(request, env, ctx, corsHeaders) {
       );
     }
 
+    // Send email notification
+    if (env.NOTIFICATION_EMAIL && env.SENDGRID_API_KEY) {
+      ctx.waitUntil(
+        sendEmailNotification(env, formData, result.meta.last_row_id)
+      );
+    }
+
     return new Response(JSON.stringify({
       success: true,
       message: 'Lead submitted successfully',
@@ -426,4 +433,81 @@ async function hashSHA256(text) {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Send email notification when new lead is submitted
+ */
+async function sendEmailNotification(env, formData, leadId) {
+  try {
+    const notificationEmail = env.NOTIFICATION_EMAIL;
+    const sendgridApiKey = env.SENDGRID_API_KEY;
+
+    if (!notificationEmail || !sendgridApiKey) {
+      console.warn('Email notification not configured');
+      return;
+    }
+
+    // Build email content
+    const emailBody = `
+New Lead Submitted - Unfuck Your Reviews
+
+Lead ID: ${leadId}
+Source: ${formData.source || 'reviews'}
+
+CONTACT INFO:
+Name: ${formData.name}
+Email: ${formData.email}
+Business: ${formData.business || 'Not provided'}
+
+REVIEW SITUATION:
+${formData.situation || 'Not specified'}
+
+ISSUES SELECTED (${formData.issues_count || 0}):
+${formData.selected_issues || 'None selected'}
+
+TRACKING:
+UTM Source: ${formData.utm_source || 'N/A'}
+UTM Medium: ${formData.utm_medium || 'N/A'}
+UTM Campaign: ${formData.utm_campaign || 'N/A'}
+Landing Page: ${formData.landing_page || 'N/A'}
+Referrer: ${formData.referrer || 'Direct'}
+
+View in dashboard: https://dashboard.unfuckyourweb.com
+`.trim();
+
+    // Send via SendGrid API
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sendgridApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        personalizations: [{
+          to: [{ email: notificationEmail }]
+        }],
+        from: {
+          email: 'leads@unfuckyourreviews.com',
+          name: 'Unfuck Your Reviews - New Lead'
+        },
+        subject: `🔔 New Lead: ${formData.name} - ${formData.business || 'Business'}`,
+        content: [{
+          type: 'text/plain',
+          value: emailBody
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('SendGrid error:', error);
+    } else {
+      console.log('Email notification sent successfully');
+    }
+
+  } catch (error) {
+    console.error('Email notification error:', error);
+    // Don't throw - we don't want to break form submission if email fails
+  }
 }
