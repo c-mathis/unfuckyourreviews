@@ -530,23 +530,15 @@ async function sendLeadConfirmation(env, formData) {
     const emailBody = `
 Hey ${formData.name.split(' ')[0]},
 
-Thanks for reaching out about ${formData.business || 'your business'}.
+Got your submission for ${formData.business || 'your business'}.
 
-I got your submission and I'm pulling your review data right now.
+I'll take a look at your review situation and get back to you within 24 hours.
 
-You'll get a personalized video audit in the next 24 hours showing:
-
-• Your current rating vs. competitors
-• What's costing you customers
-• Exactly how we'd fix it in 90 days
-
-Check your email tomorrow morning.
+In the meantime, if you want to hop on a quick call, just reply to this email.
 
 — Cameron
 Unfuck Your Reviews
 unfuckyourreviews.com
-
-P.S. If you want to hop on a quick call before the audit, just reply to this email.
 `.trim();
 
     // Send via Resend API
