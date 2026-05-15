@@ -536,9 +536,9 @@ Hey ${formData.name.split(' ')[0]},
 
 Got your submission.
 
-I'll take a look at your review situation and get back to you within 24 hours.
+I'm pulling up your Google reviews right now and I'll send you a personalized video breakdown within 24 hours showing exactly what's fixable.
 
-In the meantime, if you want to hop on a quick call, just reply to this email.
+If you want to hop on a quick call before that, just reply to this email.
 
 — Cameron
 Unfuck Your Reviews
