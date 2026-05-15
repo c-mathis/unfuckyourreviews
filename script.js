@@ -3,12 +3,8 @@
 // ============================================
 
 const CONFIG = {
-    // EDIT THIS: Replace with your form submission endpoint
-    // Options:
-    // 1. FormSubmit: 'https://formsubmit.co/your@email.com'
-    // 2. Formspree: 'https://formspree.io/f/YOUR_FORM_ID'
-    // 3. Your custom backend: 'https://yourapi.com/submit'
-    formEndpoint: 'https://unfuck-leads-worker.cameron-07f.workers.dev/submit',
+    // Cloudflare Worker endpoint
+    formEndpoint: 'https://unfuck-leads-worker.cameron-07f.workers.dev/',
 
     // Success message shown after form submission
     successMessage: "Got it. We'll get back to you within 24 hours.",
@@ -65,33 +61,39 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get form data
         const formData = new FormData(form);
 
-        // Add selected issues to form data
+        // Convert FormData to plain object
+        const payload = {};
+        formData.forEach((value, key) => {
+            payload[key] = value;
+        });
+
+        // Add selected issues to payload
         if (selectedIssues.size > 0) {
-            formData.append('selected_issues', Array.from(selectedIssues).join(' | '));
-            formData.append('issues_count', selectedIssues.size);
+            payload.selected_issues = Array.from(selectedIssues).join(' | ');
+            payload.issues_count = selectedIssues.size;
         } else {
-            formData.append('selected_issues', 'None selected');
-            formData.append('issues_count', 0);
+            payload.selected_issues = 'None selected';
+            payload.issues_count = 0;
         }
 
         try {
             // Submit to configured endpoint
             const response = await fetch(CONFIG.formEndpoint, {
                 method: 'POST',
-                body: formData,
                 headers: {
-                    'Accept': 'application/json'
-                }
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
                 // Extract form data for tracking
-                const name = formData.get('name') || '';
+                const name = payload.name || '';
                 const nameParts = name.trim().split(' ');
                 const firstName = nameParts[0] || '';
                 const lastName = nameParts.slice(1).join(' ') || '';
-                const situation = formData.get('situation') || '';
-                const website = formData.get('website') || '';
+                const situation = payload.situation || '';
+                const business = payload.business || '';
 
                 // Track Meta Pixel Lead event with advanced matching
                 if (typeof fbq !== 'undefined') {
@@ -102,10 +104,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         currency: 'USD'
                     }, {
                         // Advanced matching for better attribution
-                        em: formData.get('email'),
+                        em: payload.email,
                         fn: firstName,
                         ln: lastName,
-                        external_id: website
+                        external_id: business
                     });
                 }
 
@@ -116,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'event_label': situation,
                         'value': 399.00,
                         'currency': 'USD',
-                        'has_website': website ? 'yes' : 'no'
+                        'has_business': business ? 'yes' : 'no'
                     });
                 }
 

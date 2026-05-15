@@ -1,0 +1,1251 @@
+🎯 Starting Sacramento metro scraping (1,500 leads total)
+   Goal: 500 verified contacts after < 3.9 star filter
+
+Step 1/4: Scraping Google Maps businesses...
+
+📍 Scraping Sacramento (300 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in Sacramento, CA'...
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:57.332Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:57.335Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:57.393Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:57.395Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:58.459Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:58.850Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:58.889Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:58.933Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:15:59.029Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:02.214Z [33mWARN[39m [33m HttpCrawler:[39m Reclaiming failed request back to the list or queue. Found place (https://www.google.com/maps/search/?api=1&query=Sacramento%20Valley%20SBDC&query_place_id=ChIJb3pkAIXRmoARQGTqF7Hp65Y) that's more than 2 500km away from search center. Retrying
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:02.216Z     at checkForUnrelatedPlaces (file:///usr/src/app/dist/src/utils/places-enqueueing.js:187:19)[90m {"id":"rOHKUS1M6RH5k1o","url":"https://www.google.com/maps/search/business%20in%20Sacramento,%20CA?hl=en","retryCount":1}[39m
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.029Z [32mINFO[39m  Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.490Z [32mINFO[39m  🔍 [business in Sacramento, CA][32.7705|-96.8032][SCROLL: 2]: Search page scraped: 21 unique, 21 seen, 2 paginations. No more places found on this page. (no next cursor) --- https://www.google.com/maps/search/business%20in%20Sacramento,%20CA?hl=en
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.563Z [32mINFO[39m [33m HttpCrawler:[39m Crawler's custom isFinishedFunction() returned true, the crawler will shut down.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.642Z [32mINFO[39m  📊 21 places scraped | unique: 21 | seen: 41 | searchPages: 1 | paginations: 3
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.644Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[null,1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":4127,"requestsFinishedPerMinute":6,"requestsFailedPerMinute":0,"requestTotalDurationMillis":4127,"requestsTotal":1,"crawlerRuntimeMillis":10751}[39m
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.646Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.732Z [32mINFO[39m  📊 21 places scraped | unique: 21 | seen: 41 | searchPages: 1 | paginations: 3
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> 2026-05-07T22:16:09.754Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/3DuX4pB9AUdmWh5h8/records/results-map?signature=19XF0F46SiddBvJHSrGir. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:xFLoDKZkcWQi4kXwm][0m -> Status: SUCCEEDED, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/3DuX4pB9AUdmWh5h8/records/results-map?signature=19XF0F46SiddBvJHSrGir. It can take some time to fully load for large datasets.
+Found 21 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 21
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_sacramento_ca_
+2026-05-07_151616.csv
+📍 Scraping Roseville (225 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in Roseville, CA'...
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:17.647Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:17.650Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:17.846Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:17.848Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:19.110Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:19.653Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:19.706Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:19.746Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:19.803Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> Status: RUNNING, Message: Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:29.805Z [32mINFO[39m  Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:39.618Z [32mINFO[39m  [Status message]: You can check all currently scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/cbgxXt12T0JKL3bgF/records/results-map?signature=11ICeuBjhvugV9X44LHKK
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:39.805Z [32mINFO[39m  Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:49.131Z [32mINFO[39m  🔍 [business in Roseville, CA][38.4477|-122.6715][SCROLL: 13]: Search page scraped: 197 unique, 29 duplicate, 226 seen, 13 paginations. No more places found on this page. (no next cursor) --- https://www.google.com/maps/search/business%20in%20Roseville,%20CA?hl=en
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:49.225Z [32mINFO[39m [33m HttpCrawler:[39m Crawler's custom isFinishedFunction() returned true, the crawler will shut down.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:49.325Z [32mINFO[39m  📊 197 places scraped | unique: 197 | duplicate: 29 | seen: 226 | searchPages: 1 | paginations: 13
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:49.364Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":29319,"requestsFinishedPerMinute":2,"requestsFailedPerMinute":0,"requestTotalDurationMillis":29319,"requestsTotal":1,"crawlerRuntimeMillis":29657}[39m
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:49.366Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:49.464Z [32mINFO[39m  📊 197 places scraped | unique: 197 | duplicate: 29 | seen: 226 | searchPages: 1 | paginations: 13
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> Status: RUNNING, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/cbgxXt12T0JKL3bgF/records/results-map?signature=11ICeuBjhvugV9X44LHKK. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:UFZqvSEsTltY8IhMf][0m -> 2026-05-07T22:16:49.466Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/cbgxXt12T0JKL3bgF/records/results-map?signature=11ICeuBjhvugV9X44LHKK. It can take some time to fully load for large datasets.
+Found 197 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 197
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_roseville_ca_2
+026-05-07_151656.csv
+📍 Scraping Elk Grove (225 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in Elk Grove, CA'...
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:57.354Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:57.356Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:57.425Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:57.426Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:58.448Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:58.783Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:58.822Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:58.850Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:16:58.901Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:02.092Z [33mWARN[39m [33m HttpCrawler:[39m Reclaiming failed request back to the list or queue. Found place (https://www.google.com/maps/search/?api=1&query=Elk%20Grove%20Chamber%20of%20Commerce&query_place_id=ChIJgf1MS0DHmoARZOiidgTgt9w) that's more than 2 500km away from search center. Retrying
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:02.093Z     at checkForUnrelatedPlaces (file:///usr/src/app/dist/src/utils/places-enqueueing.js:187:19)[90m {"id":"Cp7AzI17AAAewgg","url":"https://www.google.com/maps/search/business%20in%20Elk%20Grove,%20CA?hl=en","retryCount":1}[39m
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> Status: RUNNING, Message: Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:08.902Z [32mINFO[39m  Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:09.110Z [33mWARN[39m [33m HttpCrawler:[39m Reclaiming failed request back to the list or queue. Found place (https://www.google.com/maps/search/?api=1&query=Elk%20Grove%20Chamber%20of%20Commerce&query_place_id=ChIJgf1MS0DHmoARZOiidgTgt9w) that's more than 2 500km away from search center. Retrying
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:09.112Z     at checkForUnrelatedPlaces (file:///usr/src/app/dist/src/utils/places-enqueueing.js:187:19)[90m {"id":"Cp7AzI17AAAewgg","url":"https://www.google.com/maps/search/business%20in%20Elk%20Grove,%20CA?hl=en","retryCount":2}[39m
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:15.371Z [33mWARN[39m [33m HttpCrawler:[39m Reclaiming failed request back to the list or queue. Found place (https://www.google.com/maps/search/?api=1&query=Elk%20Grove%20Chamber%20of%20Commerce&query_place_id=ChIJgf1MS0DHmoARZOiidgTgt9w) that's more than 2 500km away from search center. Retrying
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:15.373Z     at checkForUnrelatedPlaces (file:///usr/src/app/dist/src/utils/places-enqueueing.js:187:19)[90m {"id":"Cp7AzI17AAAewgg","url":"https://www.google.com/maps/search/business%20in%20Elk%20Grove,%20CA?hl=en","retryCount":3}[39m
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:18.750Z [32mINFO[39m  [Status message]: You can check all currently scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/PFN6wbBnnRyXtIxgI/records/results-map?signature=piEq44mFBWTimYnvEFDa
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:18.902Z [32mINFO[39m  Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:21.883Z [32mINFO[39m  🔍 [business in Elk Grove, CA][41.1170|-77.6047][SCROLL: 1]: Search page scraped: 20 unique, 20 seen, 1 paginations. No more places found on this page. (no next cursor) --- https://www.google.com/maps/search/business%20in%20Elk%20Grove,%20CA?hl=en
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:21.949Z [32mINFO[39m [33m HttpCrawler:[39m Crawler's custom isFinishedFunction() returned true, the crawler will shut down.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:22.021Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[null,null,null,1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":3377,"requestsFinishedPerMinute":3,"requestsFailedPerMinute":0,"requestTotalDurationMillis":3377,"requestsTotal":1,"crawlerRuntimeMillis":23207}[39m
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:22.023Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:22.037Z [32mINFO[39m  📊 20 places scraped | unique: 20 | seen: 80 | searchPages: 1 | paginations: 4
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:22.198Z [32mINFO[39m  📊 20 places scraped | unique: 20 | seen: 80 | searchPages: 1 | paginations: 4
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> Status: RUNNING, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/PFN6wbBnnRyXtIxgI/records/results-map?signature=piEq44mFBWTimYnvEFDa. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:TgyWDuI7bXZU7Mixx][0m -> 2026-05-07T22:17:22.200Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/PFN6wbBnnRyXtIxgI/records/results-map?signature=piEq44mFBWTimYnvEFDa. It can take some time to fully load for large datasets.
+Found 20 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 20
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_elk_grove_ca_2
+026-05-07_151728.csv
+📍 Scraping Folsom (150 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in Folsom, CA'...
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:29.983Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:29.985Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:30.034Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:30.036Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:31.209Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:31.579Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:31.604Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:31.643Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:31.709Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:35.294Z [32mINFO[39m  🔍 [business in Folsom, CA][32.7705|-96.8032][SCROLL: 1]: Search page scraped: 20 unique, 20 seen, 1 paginations. No more places found on this page. (no next cursor) --- https://www.google.com/maps/search/business%20in%20Folsom,%20CA?hl=en
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:35.355Z [32mINFO[39m [33m HttpCrawler:[39m Crawler's custom isFinishedFunction() returned true, the crawler will shut down.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:35.448Z [32mINFO[39m  📊 20 places scraped | unique: 20 | seen: 20 | searchPages: 1 | paginations: 1
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:35.479Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":3586,"requestsFinishedPerMinute":15,"requestsFailedPerMinute":0,"requestTotalDurationMillis":3586,"requestsTotal":1,"crawlerRuntimeMillis":3872}[39m
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:35.481Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:35.559Z [32mINFO[39m  📊 20 places scraped | unique: 20 | seen: 20 | searchPages: 1 | paginations: 1
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> 2026-05-07T22:17:35.561Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/AcZ0jz05B2J3f6x1X/records/results-map?signature=1ifr2xjpf2aoX25aPvXME. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:ueDgJ7DmxbAsbgmgB][0m -> Status: SUCCEEDED, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/AcZ0jz05B2J3f6x1X/records/results-map?signature=1ifr2xjpf2aoX25aPvXME. It can take some time to fully load for large datasets.
+Found 20 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 20
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_folsom_ca_2026
+-05-07_151742.csv
+📍 Scraping Rancho Cordova (150 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in Rancho Cordova, CA'...
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:43.462Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:43.464Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:43.516Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:43.517Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:45.007Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:45.309Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:45.353Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:45.414Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:45.706Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> Status: RUNNING, Message: Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:17:55.706Z [32mINFO[39m  Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> Status: RUNNING, Message: Finishing scraping because we reached max results --- https://www.google.com/maps/search/business%20in%20Rancho%20Cordova,%20CA?hl=en
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:00.798Z [32mINFO[39m  [Status message]: Finishing scraping because we reached max results --- https://www.google.com/maps/search/business%20in%20Rancho%20Cordova,%20CA?hl=en
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> Status: RUNNING, Message: You can check all currently scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/4Nl10gmxDYR9zlfZb/records/results-map?signature=1yx4lwmcIlynjz3McdP8y
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:05.284Z [32mINFO[39m  [Status message]: You can check all currently scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/4Nl10gmxDYR9zlfZb/records/results-map?signature=1yx4lwmcIlynjz3McdP8y
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:05.705Z [32mINFO[39m  Scraped in total 0 search pages.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:05.869Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":20088,"requestsFinishedPerMinute":3,"requestsFailedPerMinute":0,"requestTotalDurationMillis":20088,"requestsTotal":1,"crawlerRuntimeMillis":20513}[39m
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:05.869Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:05.900Z [32mINFO[39m  📊 150 places scraped | unique: 150 | duplicate: 28 | seen: 181 | searchPages: 1 | paginations: 9 | reachedMaxResults: 3
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:05.965Z [32mINFO[39m  📊 150 places scraped | unique: 150 | duplicate: 28 | seen: 181 | searchPages: 1 | paginations: 9 | reachedMaxResults: 3
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> 2026-05-07T22:18:06.156Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/4Nl10gmxDYR9zlfZb/records/results-map?signature=1yx4lwmcIlynjz3McdP8y. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:Zce3KA11pF2Z66iAa][0m -> Status: SUCCEEDED, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/4Nl10gmxDYR9zlfZb/records/results-map?signature=1yx4lwmcIlynjz3McdP8y. It can take some time to fully load for large datasets.
+Found 150 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 150
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_rancho_cordova
+_ca_2026-05-07_151813.csv
+📍 Scraping Citrus Heights (150 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in Citrus Heights, CA'...
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:14.270Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:14.273Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:14.361Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:14.362Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:15.603Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:15.982Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:16.009Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:16.119Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:16.169Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:19.503Z [32mINFO[39m  🔍 [business in Citrus Heights, CA][41.1170|-77.6047][SCROLL: 1]: Search page scraped: 18 unique, 18 seen, 1 paginations. No more places found on this page. (no next cursor) --- https://www.google.com/maps/search/business%20in%20Citrus%20Heights,%20CA?hl=en
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:19.582Z [32mINFO[39m [33m HttpCrawler:[39m Crawler's custom isFinishedFunction() returned true, the crawler will shut down.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:19.688Z [32mINFO[39m  📊 18 places scraped | unique: 18 | seen: 18 | searchPages: 1 | paginations: 1
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:19.751Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":3350,"requestsFinishedPerMinute":16,"requestsFailedPerMinute":0,"requestTotalDurationMillis":3350,"requestsTotal":1,"crawlerRuntimeMillis":3739}[39m
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:19.754Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:19.817Z [32mINFO[39m  📊 18 places scraped | unique: 18 | seen: 18 | searchPages: 1 | paginations: 1
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> 2026-05-07T22:18:19.819Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/1LMeVOkKVVQv88Hdc/records/results-map?signature=11Kop5hlJPSRd4nCy7aBr. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:66yZMzsLb1WTfBaSq][0m -> Status: SUCCEEDED, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/1LMeVOkKVVQv88Hdc/records/results-map?signature=11Kop5hlJPSRd4nCy7aBr. It can take some time to fully load for large datasets.
+Found 18 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 18
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_citrus_heights
+_ca_2026-05-07_151826.csv
+📍 Scraping Fair Oaks (150 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in Fair Oaks, CA'...
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:27.766Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:27.768Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:27.814Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:27.816Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:28.803Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:29.137Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:29.164Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:29.203Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:29.269Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:35.510Z [32mINFO[39m  🔍 [business in Fair Oaks, CA][32.5132|-93.7525][SCROLL: 3]: Search page scraped: 22 unique, 22 seen, 3 paginations. No more places found on this page. (no next cursor) --- https://www.google.com/maps/search/business%20in%20Fair%20Oaks,%20CA?hl=en
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:35.570Z [32mINFO[39m [33m HttpCrawler:[39m Crawler's custom isFinishedFunction() returned true, the crawler will shut down.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:35.647Z [32mINFO[39m  📊 22 places scraped | unique: 22 | seen: 22 | searchPages: 1 | paginations: 3
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:35.699Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":6234,"requestsFinishedPerMinute":9,"requestsFailedPerMinute":0,"requestTotalDurationMillis":6234,"requestsTotal":1,"crawlerRuntimeMillis":6532}[39m
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:35.701Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:35.809Z [32mINFO[39m  📊 22 places scraped | unique: 22 | seen: 22 | searchPages: 1 | paginations: 3
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> 2026-05-07T22:18:35.811Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/DZBrlztuAEyTAB1jL/records/results-map?signature=1oJ3yPbZziifZROnnBh8o. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:KtSzgpzrZnD0jMN8R][0m -> Status: SUCCEEDED, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/DZBrlztuAEyTAB1jL/records/results-map?signature=1oJ3yPbZziifZROnnBh8o. It can take some time to fully load for large datasets.
+Found 22 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 22
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_fair_oaks_ca_2
+026-05-07_151842.csv
+📍 Scraping West Sacramento (150 businesses)...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Google Maps Scraper                                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Searching Google Maps: 'business in West Sacramento, CA'...
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> Status: RUNNING, Message: 
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:43.751Z ACTOR: Pulling container image of build SQp3hXa6uuI6osJqh from registry.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:43.754Z ACTOR: Creating container.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:43.837Z ACTOR: Starting container.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:43.839Z ACTOR: Running under "LIMITED_PERMISSIONS" permission level.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:45.042Z [32mINFO[39m  System info[90m {"apifyVersion":"3.5.3","apifyClientVersion":"2.19.0","crawleeVersion":"3.16.0","osType":"Linux","nodeVersion":"v24.15.0"}[39m
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:45.467Z [32mINFO[39m  📡 Geolocation started
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:45.498Z [32mINFO[39m  📡 Geolocation finished
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:45.541Z [32mINFO[39m  [BG ENQUEUE] Finished enqueueing
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> Status: RUNNING, Message: Starting the crawler.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:45.621Z [32mINFO[39m [33m HttpCrawler:[39m Starting the crawler.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:50.280Z [32mINFO[39m  🔍 [business in West Sacramento, CA][32.7705|-96.8032][SCROLL: 3]: Search page scraped: 4 unique, 4 seen, 3 paginations. No more places found on this page. (no next cursor) --- https://www.google.com/maps/search/business%20in%20West%20Sacramento,%20CA?hl=en
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:50.410Z [32mINFO[39m [33m HttpCrawler:[39m Crawler's custom isFinishedFunction() returned true, the crawler will shut down.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:50.497Z [32mINFO[39m  📊 4 places scraped | unique: 4 | seen: 4 | searchPages: 1 | paginations: 3
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:50.559Z [32mINFO[39m [33m HttpCrawler:[39m Final request statistics:[90m {"requestsFinished":1,"requestsFailed":0,"retryHistogram":[1],"requestAvgFailedDurationMillis":null,"requestAvgFinishedDurationMillis":4658,"requestsFinishedPerMinute":12,"requestsFailedPerMinute":0,"requestTotalDurationMillis":4658,"requestsTotal":1,"crawlerRuntimeMillis":5057}[39m
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:50.561Z [32mINFO[39m [33m HttpCrawler:[39m Finished! Total 1 requests: 1 succeeded, 0 failed.[90m {"terminal":true}[39m
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:50.694Z [32mINFO[39m  📊 4 places scraped | unique: 4 | seen: 4 | searchPages: 1 | paginations: 3
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> Status: RUNNING, Message: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/UJbSdoRs9bKkA3its/records/results-map?signature=CBJPH9HEGmbKTiwpJJyh. It can take some time to fully load for large datasets.
+[36m[apify.crawler-google-places runId:qtRbCPFIl5rfdzRE5][0m -> 2026-05-07T22:18:50.696Z [32mINFO[39m  [Status message]: Scraping finished. You can view all scraped places laid out on a map on: https://api.apify.com/v2/key-value-stores/UJbSdoRs9bKkA3its/records/results-map?signature=CBJPH9HEGmbKTiwpJJyh. It can take some time to fully load for large datasets.
+Found 4 businesses
+  → With emails: 0
+  → Without emails (need enrichment): 4
+Saved to: 
+/Users/beef/Repository/lead-scraper-agent/data/raw/gmaps_business_west_sacrament
+o_ca_2026-05-07_151857.csv
+
+✅ Scraping complete! (1,500 businesses scraped)
+
+Step 2/4: Combining and enriching with emails (Apollo.io)...
+
+✅ Combined        8 files into Unfuck_Sac_Combined_Raw.csv
+
+📧 Enriching with Apollo.io to find emails...
+/Users/beef/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Apollo.io Email Enrichment                                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Loaded 459 leads from data/raw/Unfuck_Sac_Combined_Raw.csv
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+API Error: 401 Client Error: Unauthorized for url: 
+https://api.apollo.io/api/v1/people/match
+Enriching leads... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+
+Enrichment complete!
+  → Total leads: 459
+  → Emails found: 0 (0.0%)
+  → Not found: 459
+Traceback (most recent call last):
+  File "/Users/beef/Repository/lead-scraper-agent/main.py", line 290, in <module>
+    cli()
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/click/core.py", line 1161, in __call__
+    return self.main(*args, **kwargs)
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/click/core.py", line 1082, in main
+    rv = self.invoke(ctx)
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/click/core.py", line 1697, in invoke
+    return _process_result(sub_ctx.command.invoke(sub_ctx))
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/click/core.py", line 1443, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/click/core.py", line 788, in invoke
+    return __callback(*args, **kwargs)
+  File "/Users/beef/Repository/lead-scraper-agent/main.py", line 107, in enrich
+    enrich_with_apollo(input_file, output_file=output)
+  File "/Users/beef/Repository/lead-scraper-agent/src/enrichment/apollo.py", line 173, in enrich_with_apollo
+    enriched_df.to_csv(output_path, index=False)
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/pandas/util/_decorators.py", line 333, in wrapper
+    return func(*args, **kwargs)
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/pandas/core/generic.py", line 3989, in to_csv
+    return DataFrameRenderer(formatter).to_csv(
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/pandas/io/formats/format.py", line 1014, in to_csv
+    csv_formatter.save()
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/pandas/io/formats/csvs.py", line 251, in save
+    with get_handle(
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/pandas/io/common.py", line 749, in get_handle
+    check_parent_directory(str(handle))
+  File "/Users/beef/Library/Python/3.9/lib/python/site-packages/pandas/io/common.py", line 616, in check_parent_directory
+    raise OSError(rf"Cannot save file into a non-existent directory: '{parent}'")
+OSError: Cannot save file into a non-existent directory: '/Users/beef/Repository/lead-scraper-agent/data/enriched/data/enriched'

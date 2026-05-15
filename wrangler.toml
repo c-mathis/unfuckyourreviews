@@ -8,12 +8,7 @@ binding = "DB"
 database_name = "unfuck-leads"
 database_id = "20ec98a7-8f00-48ed-938a-bc1c4946bf40"
 
-# Routes - these will handle all form submissions
-[[routes]]
-pattern = "leads.unfuckyourweb.com/*"
-zone_name = "unfuckyourweb.com"
-
-# You can add more routes as you add more "Unfuck" properties
+# Routes - commented out for now since DNS not configured
 # [[routes]]
-# pattern = "leads.unfuckyourreviews.com/*"
-# zone_name = "unfuckyourreviews.com"
+# pattern = "leads.unfuckyourweb.com/*"
+# zone_name = "unfuckyourweb.com"
