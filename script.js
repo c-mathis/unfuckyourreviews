@@ -85,14 +85,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (response.ok) {
+                // Extract form data for tracking
+                const name = formData.get('name') || '';
+                const nameParts = name.trim().split(' ');
+                const firstName = nameParts[0] || '';
+                const lastName = nameParts.slice(1).join(' ') || '';
+                const business = formData.get('business') || '';
+                const situation = formData.get('situation') || '';
+
                 // Track Meta Pixel Lead event with advanced matching
                 if (typeof fbq !== 'undefined') {
-                    // Extract form data for advanced matching
-                    const name = formData.get('name') || '';
-                    const nameParts = name.trim().split(' ');
-                    const firstName = nameParts[0] || '';
-                    const lastName = nameParts.slice(1).join(' ') || '';
-
                     fbq('track', 'Lead', {
                         content_name: 'Review Management Service',
                         content_category: 'Service Inquiry',
@@ -103,10 +105,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         em: formData.get('email'),
                         fn: firstName,
                         ln: lastName,
-                        external_id: formData.get('business')
+                        external_id: business
                     });
-                    console.log('Meta Pixel: Lead tracked with advanced matching');
                 }
+
+                // Track Google Analytics Lead event
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'generate_lead', {
+                        'event_category': 'conversion',
+                        'event_label': situation,
+                        'value': 399.00,
+                        'currency': 'USD',
+                        'business_name': business
+                    });
+                }
+
+                console.log('Tracking: Lead conversion tracked');
 
                 // Success
                 showFeedback('success', CONFIG.successMessage);
@@ -178,13 +192,25 @@ window.addEventListener('scroll', function() {
 
     if (scrollPercent >= 50) {
         viewContentTracked = true;
+
+        // Meta Pixel
         if (typeof fbq !== 'undefined') {
             fbq('track', 'ViewContent', {
                 content_name: 'Unfuck Your Reviews Landing Page',
                 content_category: 'Review Management Service'
             });
         }
-        console.log('Meta Pixel: ViewContent tracked (50% scroll)');
+
+        // Google Analytics
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'scroll', {
+                'event_category': 'engagement',
+                'event_label': '50_percent',
+                'value': 50
+            });
+        }
+
+        console.log('Tracking: 50% scroll tracked');
     }
 });
 
@@ -197,10 +223,21 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('focus', function() {
             if (!formStartTracked) {
                 formStartTracked = true;
+
+                // Meta Pixel
                 if (typeof fbq !== 'undefined') {
                     fbq('track', 'InitiateCheckout');
                 }
-                console.log('Meta Pixel: InitiateCheckout tracked (form started)');
+
+                // Google Analytics
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'begin_checkout', {
+                        'event_category': 'engagement',
+                        'event_label': 'form_started'
+                    });
+                }
+
+                console.log('Tracking: Form started');
             }
         }, { once: true });
     });
