@@ -115,7 +115,7 @@ async function handleFormSubmission(request, env, ctx, corsHeaders) {
       formData.email,
       formData.phone || null,
       formData.website || null,
-      formData.problem || null,
+      formData.gbp_url || null,  // Store GBP URL in 'problem' field temporarily
       formData.selected_issues || null,
       parseInt(formData.issues_count) || 0,
       formData.utm_source || null,
@@ -464,7 +464,11 @@ CONTACT INFO:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Name: ${formData.name}
 Email: ${formData.email}
-Business: ${formData.business || 'Not provided'}
+
+RESEARCH LINKS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Website: ${formData.website || 'Not provided'}
+Google Business Profile: ${formData.gbp_url || 'Not provided'}
 
 REVIEW SITUATION:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -496,7 +500,7 @@ View in dashboard: https://dashboard.unfuckyourweb.com
       body: JSON.stringify({
         from: 'Unfuck Your Reviews <leads@unfuckyourreviews.com>',
         to: [notificationEmail],
-        subject: `🔔 New Lead: ${formData.name} - ${formData.business || 'Business'}`,
+        subject: `🔔 New Lead: ${formData.name} - ${formData.situation || 'Review Issue'}`,
         text: emailBody
       })
     });
@@ -530,7 +534,7 @@ async function sendLeadConfirmation(env, formData) {
     const emailBody = `
 Hey ${formData.name.split(' ')[0]},
 
-Got your submission for ${formData.business || 'your business'}.
+Got your submission.
 
 I'll take a look at your review situation and get back to you within 24 hours.
 
@@ -552,7 +556,7 @@ unfuckyourreviews.com
         from: 'Cameron from Unfuck Your Reviews <cameron@unfuckyourreviews.com>',
         to: [formData.email],
         reply_to: 'cameron@axesagency.com',
-        subject: `Got it - your review audit for ${formData.business || 'your business'}`,
+        subject: 'Got it - looking at your reviews now',
         text: emailBody
       })
     });
