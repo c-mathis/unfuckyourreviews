@@ -85,6 +85,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (response.ok) {
+                // Track Meta Pixel Lead event with advanced matching
+                if (typeof fbq !== 'undefined') {
+                    // Extract form data for advanced matching
+                    const name = formData.get('name') || '';
+                    const nameParts = name.trim().split(' ');
+                    const firstName = nameParts[0] || '';
+                    const lastName = nameParts.slice(1).join(' ') || '';
+
+                    fbq('track', 'Lead', {
+                        content_name: 'Review Management Service',
+                        content_category: 'Service Inquiry',
+                        value: 399.00,  // Expected monthly service value
+                        currency: 'USD'
+                    }, {
+                        // Advanced matching for better attribution
+                        em: formData.get('email'),
+                        fn: firstName,
+                        ln: lastName,
+                        external_id: formData.get('business')
+                    });
+                    console.log('Meta Pixel: Lead tracked with advanced matching');
+                }
+
                 // Success
                 showFeedback('success', CONFIG.successMessage);
                 form.reset();
@@ -143,35 +166,43 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 });
 
 // ============================================
-// ANALYTICS TRACKING (OPTIONAL)
+// ANALYTICS TRACKING
 // ============================================
 
-// Track form submissions
-function trackFormSubmission() {
-    // Add your analytics tracking here
-    // Example for Google Analytics:
-    // gtag('event', 'form_submission', {
-    //     'event_category': 'contact',
-    //     'event_label': 'website_audit_request'
-    // });
+// Track ViewContent at 50% scroll
+let viewContentTracked = false;
+window.addEventListener('scroll', function() {
+    if (viewContentTracked) return;
 
-    // Example for Facebook Pixel:
-    // fbq('track', 'Lead');
+    const scrollPercent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
 
-    console.log('Form submitted - add your analytics tracking in is-your-website-fucked.js');
-}
+    if (scrollPercent >= 50) {
+        viewContentTracked = true;
+        if (typeof fbq !== 'undefined') {
+            fbq('track', 'ViewContent', {
+                content_name: 'Unfuck Your Reviews Landing Page',
+                content_category: 'Review Management Service'
+            });
+        }
+        console.log('Meta Pixel: ViewContent tracked (50% scroll)');
+    }
+});
 
-// Track CTA button clicks
-document.querySelectorAll('.cta-button').forEach(button => {
-    button.addEventListener('click', function() {
-        // Add your analytics tracking here
-        // Example:
-        // gtag('event', 'click', {
-        //     'event_category': 'cta',
-        //     'event_label': 'get_unfucked_button'
-        // });
+// Track InitiateCheckout when form is started (first field clicked)
+let formStartTracked = false;
+document.addEventListener('DOMContentLoaded', function() {
+    const formInputs = document.querySelectorAll('#contactForm input, #contactForm select');
 
-        console.log('CTA clicked - add your analytics tracking in is-your-website-fucked.js');
+    formInputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            if (!formStartTracked) {
+                formStartTracked = true;
+                if (typeof fbq !== 'undefined') {
+                    fbq('track', 'InitiateCheckout');
+                }
+                console.log('Meta Pixel: InitiateCheckout tracked (form started)');
+            }
+        }, { once: true });
     });
 });
 

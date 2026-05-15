@@ -4,7 +4,7 @@
  */
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -24,7 +24,7 @@ export default {
     try {
       // Form submission endpoint
       if (path === '/submit' && request.method === 'POST') {
-        return await handleFormSubmission(request, env, corsHeaders);
+        return await handleFormSubmission(request, env, ctx, corsHeaders);
       }
 
       // Dashboard API - Get all leads
@@ -58,7 +58,7 @@ export default {
 /**
  * Handle form submission from landing pages
  */
-async function handleFormSubmission(request, env, corsHeaders) {
+async function handleFormSubmission(request, env, ctx, corsHeaders) {
   try {
     const contentType = request.headers.get('content-type') || '';
     let formData = {};
@@ -137,6 +137,14 @@ async function handleFormSubmission(request, env, corsHeaders) {
       'lead_created',
       `New ${source} lead submitted`
     ).run();
+
+    // Send Meta Conversion API event (server-side tracking)
+    // Use ctx.waitUntil so it doesn't delay the response
+    if (env.META_PIXEL_ID && env.META_ACCESS_TOKEN) {
+      ctx.waitUntil(
+        sendMetaConversionEvent(env, formData, ipAddress, userAgent, referer)
+      );
+    }
 
     return new Response(JSON.stringify({
       success: true,
@@ -327,4 +335,95 @@ async function updateLead(request, env, corsHeaders) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+}
+
+/**
+ * Send conversion event to Meta Conversion API (CAPI)
+ * Server-side tracking for better iOS 14+ attribution
+ */
+async function sendMetaConversionEvent(env, formData, ipAddress, userAgent, sourceUrl) {
+  try {
+    const pixelId = env.META_PIXEL_ID;
+    const accessToken = env.META_ACCESS_TOKEN;
+
+    if (!pixelId || !accessToken) {
+      console.warn('Meta Pixel ID or Access Token not configured');
+      return;
+    }
+
+    // Hash email for privacy
+    const emailHash = formData.email ?
+      await hashSHA256(formData.email.toLowerCase().trim()) : null;
+
+    // Parse name into first/last for advanced matching
+    const name = formData.name || '';
+    const nameParts = name.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Hash names
+    const firstNameHash = firstName ?
+      await hashSHA256(firstName.toLowerCase().trim()) : null;
+    const lastNameHash = lastName ?
+      await hashSHA256(lastName.toLowerCase().trim()) : null;
+
+    // Prepare event data for Meta CAPI
+    const eventData = {
+      data: [{
+        event_name: 'Lead',
+        event_time: Math.floor(Date.now() / 1000),
+        event_source_url: sourceUrl || 'https://unfuckyourreviews.com',
+        action_source: 'website',
+        user_data: {
+          em: emailHash,
+          fn: firstNameHash,
+          ln: lastNameHash,
+          client_ip_address: ipAddress,
+          client_user_agent: userAgent,
+          external_id: formData.business || formData.email  // Business name as external ID
+        },
+        custom_data: {
+          content_name: 'Review Management Service',
+          content_category: 'Service Inquiry',
+          value: 399.00,
+          currency: 'USD'
+        }
+      }]
+    };
+
+    // Send to Meta CAPI
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(eventData)
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('Meta CAPI error:', result);
+    } else {
+      console.log('Meta CAPI event sent successfully:', result);
+    }
+
+  } catch (error) {
+    console.error('Meta CAPI send error:', error);
+    // Don't throw - we don't want to break form submission if tracking fails
+  }
+}
+
+/**
+ * Hash string with SHA-256 for Meta CAPI
+ */
+async function hashSHA256(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
