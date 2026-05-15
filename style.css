@@ -329,6 +329,17 @@ body {
     margin-bottom: var(--spacing-xs);
 }
 
+.footer a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer a:hover {
+    color: var(--color-text);
+    text-decoration: underline;
+}
+
 .footer-tagline {
     font-size: 0.75rem;
 }
