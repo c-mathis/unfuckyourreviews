@@ -556,7 +556,7 @@ To unfuckery and beyond,
         from: 'Cameron from Unfuck Your Reviews <cameron@unfuckyourreviews.com>',
         to: [formData.email],
         reply_to: 'cameron@axesagency.com',
-        subject: 'So your reviews are fucked?',
+        subject: 'Got the scoop on your reviews',
         text: emailBody
       })
     });
