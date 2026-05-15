@@ -412,6 +412,43 @@ textarea:focus {
 }
 
 /* ============================================
+   CONFIRMATION MESSAGE
+   ============================================ */
+.confirmation-message {
+    text-align: center;
+    padding: var(--spacing-xl) var(--spacing-md);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.confirmation-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--color-accent);
+    color: var(--color-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 0 auto var(--spacing-lg);
+}
+
+.confirmation-message h2 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 900;
+    margin-bottom: var(--spacing-md);
+    line-height: 1.1;
+}
+
+.confirmation-message p {
+    font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+    color: var(--color-text-muted);
+    line-height: 1.4;
+}
+
+/* ============================================
    UTILITY CLASSES
    ============================================ */
 .visually-hidden {

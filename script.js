@@ -138,9 +138,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 console.log('Tracking: Lead conversion tracked');
 
-                // Success
-                showFeedback('success', CONFIG.successMessage);
-                form.reset();
+                // Success - replace form with confirmation
+                showConfirmation();
             } else {
                 // Server error - log the actual error
                 console.error('Server error:', responseData);
@@ -169,6 +168,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 feedback.style.display = 'none';
             }, 5000);
         }
+    }
+
+    function showConfirmation() {
+        // Replace entire CTA section with confirmation
+        const ctaSection = document.querySelector('.cta-section');
+        ctaSection.innerHTML = `
+            <div class="confirmation-message">
+                <div class="confirmation-icon">✓</div>
+                <h2>Thanks, we're on the way.</h2>
+                <p>Keep an eye out for our email so we can get rockin'.</p>
+            </div>
+        `;
+
+        // Scroll to confirmation
+        ctaSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 });
 
