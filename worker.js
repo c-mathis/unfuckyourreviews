@@ -146,10 +146,15 @@ async function handleFormSubmission(request, env, ctx, corsHeaders) {
       );
     }
 
-    // Send email notification
-    if (env.NOTIFICATION_EMAIL && env.SENDGRID_API_KEY) {
+    // Send emails via Resend
+    if (env.RESEND_API_KEY) {
       ctx.waitUntil(
-        sendEmailNotification(env, formData, result.meta.last_row_id)
+        Promise.all([
+          // Send notification to you
+          sendAdminNotification(env, formData, result.meta.last_row_id),
+          // Send confirmation to lead
+          sendLeadConfirmation(env, formData)
+        ])
       );
     }
 
@@ -436,15 +441,15 @@ async function hashSHA256(text) {
 }
 
 /**
- * Send email notification when new lead is submitted
+ * Send admin notification via Resend
  */
-async function sendEmailNotification(env, formData, leadId) {
+async function sendAdminNotification(env, formData, leadId) {
   try {
-    const notificationEmail = env.NOTIFICATION_EMAIL;
-    const sendgridApiKey = env.SENDGRID_API_KEY;
+    const resendApiKey = env.RESEND_API_KEY;
+    const notificationEmail = env.NOTIFICATION_EMAIL || 'cameron@axesagency.com';
 
-    if (!notificationEmail || !sendgridApiKey) {
-      console.warn('Email notification not configured');
+    if (!resendApiKey) {
+      console.warn('Resend API key not configured');
       return;
     }
 
@@ -456,58 +461,119 @@ Lead ID: ${leadId}
 Source: ${formData.source || 'reviews'}
 
 CONTACT INFO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Name: ${formData.name}
 Email: ${formData.email}
 Business: ${formData.business || 'Not provided'}
 
 REVIEW SITUATION:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${formData.situation || 'Not specified'}
 
 ISSUES SELECTED (${formData.issues_count || 0}):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${formData.selected_issues || 'None selected'}
 
-TRACKING:
+TRACKING INFO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 UTM Source: ${formData.utm_source || 'N/A'}
 UTM Medium: ${formData.utm_medium || 'N/A'}
 UTM Campaign: ${formData.utm_campaign || 'N/A'}
 Landing Page: ${formData.landing_page || 'N/A'}
 Referrer: ${formData.referrer || 'Direct'}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 View in dashboard: https://dashboard.unfuckyourweb.com
 `.trim();
 
-    // Send via SendGrid API
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    // Send via Resend API
+    const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${sendgridApiKey}`,
+        'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        personalizations: [{
-          to: [{ email: notificationEmail }]
-        }],
-        from: {
-          email: 'leads@unfuckyourreviews.com',
-          name: 'Unfuck Your Reviews - New Lead'
-        },
+        from: 'Unfuck Your Reviews <leads@unfuckyourreviews.com>',
+        to: [notificationEmail],
         subject: `🔔 New Lead: ${formData.name} - ${formData.business || 'Business'}`,
-        content: [{
-          type: 'text/plain',
-          value: emailBody
-        }]
+        text: emailBody
       })
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('SendGrid error:', error);
+      console.error('Resend error (admin notification):', error);
     } else {
-      console.log('Email notification sent successfully');
+      console.log('Admin notification sent successfully');
     }
 
   } catch (error) {
-    console.error('Email notification error:', error);
+    console.error('Admin notification error:', error);
+    // Don't throw - we don't want to break form submission if email fails
+  }
+}
+
+/**
+ * Send confirmation email to lead via Resend
+ */
+async function sendLeadConfirmation(env, formData) {
+  try {
+    const resendApiKey = env.RESEND_API_KEY;
+
+    if (!resendApiKey) {
+      console.warn('Resend API key not configured');
+      return;
+    }
+
+    // Build confirmation email
+    const emailBody = `
+Hey ${formData.name.split(' ')[0]},
+
+Thanks for reaching out about ${formData.business || 'your business'}.
+
+I got your submission and I'm pulling your review data right now.
+
+You'll get a personalized video audit in the next 24 hours showing:
+
+• Your current rating vs. competitors
+• What's costing you customers
+• Exactly how we'd fix it in 90 days
+
+Check your email tomorrow morning.
+
+— Cameron
+Unfuck Your Reviews
+unfuckyourreviews.com
+
+P.S. If you want to hop on a quick call before the audit, just reply to this email.
+`.trim();
+
+    // Send via Resend API
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Cameron from Unfuck Your Reviews <cameron@unfuckyourreviews.com>',
+        to: [formData.email],
+        reply_to: 'cameron@axesagency.com',
+        subject: `Got it - your review audit for ${formData.business || 'your business'}`,
+        text: emailBody
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('Resend error (lead confirmation):', error);
+    } else {
+      console.log('Lead confirmation sent successfully');
+    }
+
+  } catch (error) {
+    console.error('Lead confirmation error:', error);
     // Don't throw - we don't want to break form submission if email fails
   }
 }
