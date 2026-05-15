@@ -76,7 +76,17 @@ document.addEventListener('DOMContentLoaded', function() {
             payload.issues_count = 0;
         }
 
+        // Add tracking data to payload
+        const trackingData = JSON.parse(sessionStorage.getItem('tracking_data') || '{}');
+        Object.keys(trackingData).forEach(key => {
+            if (trackingData[key]) {
+                payload[key] = trackingData[key];
+            }
+        });
+
         try {
+            console.log('Submitting payload:', payload);
+
             // Submit to configured endpoint
             const response = await fetch(CONFIG.formEndpoint, {
                 method: 'POST',
@@ -86,7 +96,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify(payload)
             });
 
-            if (response.ok) {
+            console.log('Response status:', response.status);
+            const responseData = await response.json();
+            console.log('Response data:', responseData);
+
+            if (response.ok && responseData.success) {
                 // Extract form data for tracking
                 const name = payload.name || '';
                 const nameParts = name.trim().split(' ');
@@ -128,8 +142,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 showFeedback('success', CONFIG.successMessage);
                 form.reset();
             } else {
-                // Server error
-                throw new Error('Server returned an error');
+                // Server error - log the actual error
+                console.error('Server error:', responseData);
+                throw new Error(responseData.error || 'Server returned an error');
             }
         } catch (error) {
             // Network or other error
@@ -274,23 +289,9 @@ function captureUrlParameters() {
     return trackingData;
 }
 
-// Add tracking data to form submission
+// Capture tracking data on page load
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('contactForm');
-    const trackingData = captureUrlParameters();
-
-    form.addEventListener('submit', function() {
-        // Add hidden fields with tracking data
-        Object.keys(trackingData).forEach(key => {
-            if (trackingData[key]) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = trackingData[key];
-                form.appendChild(input);
-            }
-        });
-    });
+    captureUrlParameters();
 });
 
 // ============================================
