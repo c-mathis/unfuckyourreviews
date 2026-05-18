@@ -1,20 +1,37 @@
 // Cloudflare Worker for Unfuck Your Reviews Lead Capture
-// Simple version matching TPN's working setup
+// Handles form submissions + dashboard API
 
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type',
         },
       });
     }
 
+    // Route requests
+    if (path === '/api/leads' && request.method === 'GET') {
+      return handleGetLeads(request, env);
+    }
+
+    if (path === '/api/stats' && request.method === 'GET') {
+      return handleGetStats(request, env);
+    }
+
+    if (path === '/api/leads/update' && request.method === 'POST') {
+      return handleUpdateLead(request, env);
+    }
+
+    // Default: Form submission (POST to / or /submit)
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
     }
@@ -38,18 +55,19 @@ export default {
       // Insert into D1 database
       const result = await env.DB.prepare(`
         INSERT INTO leads (
-          source, name, email, phone, website, problem,
+          source, name, email, phone, website, gbp_url, problem,
           selected_issues, issues_count,
           utm_source, utm_medium, utm_campaign, utm_content,
           referrer, landing_page,
           ip_address, user_agent
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         source,
         data.name,
         data.email,
         data.phone || null,
-        data.business || null,
+        data.website || null,
+        data.gbp_url || null,
         data.situation || null,
         data.selected_issues || null,
         parseInt(data.issues_count) || 0,
@@ -65,8 +83,9 @@ export default {
 
       console.log('Lead saved:', result.meta.last_row_id);
 
-      // Send email notification if Resend is configured
+      // Send email notifications if Resend is configured
       if (env.RESEND_API_KEY) {
+        // Internal notification to you
         ctx.waitUntil(
           fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -83,13 +102,42 @@ export default {
                 <p><strong>Name:</strong> ${data.name}</p>
                 <p><strong>Email:</strong> ${data.email}</p>
                 <p><strong>Phone:</strong> ${data.phone || 'Not provided'}</p>
-                <p><strong>Business:</strong> ${data.business || 'Not provided'}</p>
+                <p><strong>Website:</strong> ${data.website || 'Not provided'}</p>
+                <p><strong>Google Business Profile:</strong> ${data.gbp_url || 'Not provided'}</p>
                 <p><strong>Situation:</strong> ${data.situation || 'Not provided'}</p>
+                <p><strong>Selected Issues:</strong> ${data.selected_issues || 'None'}</p>
                 <p><strong>Source:</strong> ${source}</p>
                 <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
               `,
             }),
-          }).catch(err => console.error('Email send error:', err))
+          }).catch(err => console.error('Internal email error:', err))
+        );
+
+        // Confirmation email to user
+        ctx.waitUntil(
+          fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'Cameron from Unfuck Your Reviews <cameron@unfuckyourreviews.com>',
+              to: [data.email],
+              reply_to: 'cameron@unfuckyourreviews.com',
+              subject: 'So your reviews are fucked?',
+              text: `Hey ${data.name.split(' ')[0]},
+
+Got your submission.
+
+I'm checking out your reviews right now. I've got a video coming your way in about 24 hours. Will breakdown the situation and how we can fix it.
+
+I'll hit you up shortly.
+
+To unfuckery and beyond,
+— Cameron`,
+            }),
+          }).catch(err => console.error('Confirmation email error:', err))
         );
       }
 
@@ -129,3 +177,231 @@ export default {
     }
   }
 };
+
+// ============================================
+// API ENDPOINT HANDLERS
+// ============================================
+
+async function handleGetLeads(request, env) {
+  try {
+    const url = new URL(request.url);
+    const limit = parseInt(url.searchParams.get('limit')) || 100;
+    const offset = parseInt(url.searchParams.get('offset')) || 0;
+    const source = url.searchParams.get('source');
+    const status = url.searchParams.get('status');
+
+    let query = 'SELECT * FROM leads WHERE 1=1';
+    const params = [];
+
+    if (source) {
+      query += ' AND source = ?';
+      params.push(source);
+    }
+
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const result = await env.DB.prepare(query).bind(...params).all();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        leads: result.results,
+        count: result.results.length,
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Get leads error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  }
+}
+
+async function handleGetStats(request, env) {
+  try {
+    // Total leads
+    const totalResult = await env.DB.prepare(
+      'SELECT COUNT(*) as total FROM leads'
+    ).first();
+
+    // Leads by source
+    const sourceResult = await env.DB.prepare(
+      'SELECT source, COUNT(*) as count FROM leads GROUP BY source'
+    ).all();
+
+    // Leads by status
+    const statusResult = await env.DB.prepare(
+      'SELECT status, COUNT(*) as count FROM leads GROUP BY status'
+    ).all();
+
+    // Today's leads
+    const todayResult = await env.DB.prepare(
+      "SELECT COUNT(*) as count FROM leads WHERE DATE(created_at) = DATE('now')"
+    ).first();
+
+    // This week's leads
+    const weekResult = await env.DB.prepare(
+      "SELECT COUNT(*) as count FROM leads WHERE created_at >= DATE('now', '-7 days')"
+    ).first();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        stats: {
+          total: totalResult.total,
+          today: todayResult.count,
+          week: weekResult.count,
+          by_source: sourceResult.results,
+          by_status: statusResult.results,
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Get stats error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  }
+}
+
+async function handleUpdateLead(request, env) {
+  try {
+    const data = await request.json();
+    const { id, status, notes } = data;
+
+    if (!id) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Lead ID is required',
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    // Update lead
+    const updateFields = [];
+    const params = [];
+
+    if (status) {
+      updateFields.push('status = ?');
+      params.push(status);
+    }
+
+    if (notes !== undefined) {
+      updateFields.push('notes = ?');
+      params.push(notes);
+    }
+
+    if (updateFields.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No fields to update',
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    params.push(id);
+    const query = `UPDATE leads SET ${updateFields.join(', ')} WHERE id = ?`;
+
+    await env.DB.prepare(query).bind(...params).run();
+
+    // Log activity
+    if (status) {
+      await env.DB.prepare(`
+        INSERT INTO activity_log (lead_id, action, details)
+        VALUES (?, 'status_change', ?)
+      `).bind(id, `Status changed to: ${status}`).run();
+    }
+
+    if (notes !== undefined) {
+      await env.DB.prepare(`
+        INSERT INTO activity_log (lead_id, action, details)
+        VALUES (?, 'note_added', ?)
+      `).bind(id, notes).run();
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Lead updated successfully',
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Update lead error:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  }
+}

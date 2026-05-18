@@ -451,7 +451,7 @@
 
     <script>
         // Configuration
-        const API_BASE = 'https://leads.unfuckyourweb.com';
+        const API_BASE = 'https://unfuck-leads-worker.cameron-07f.workers.dev';
 
         let allLeads = [];
         let currentLead = null;
@@ -556,6 +556,10 @@
                         <div class="info-item">
                             <div class="info-label">Website</div>
                             <div class="info-value">${lead.website ? `<a href="${lead.website}" target="_blank" style="color: #FF0000;">${lead.website}</a>` : '-'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Google Business Profile</div>
+                            <div class="info-value">${lead.gbp_url ? `<a href="${lead.gbp_url}" target="_blank" style="color: #FF0000;">${lead.gbp_url}</a>` : '-'}</div>
                         </div>
                     </div>
                 </div>
