@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const firstName = nameParts[0] || '';
                 const lastName = nameParts.slice(1).join(' ') || '';
                 const situation = payload.situation || '';
-                const business = payload.business || '';
+                const website = payload.website || '';
 
                 // Track Meta Pixel Lead event with advanced matching
                 if (typeof fbq !== 'undefined') {
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         em: payload.email,
                         fn: firstName,
                         ln: lastName,
-                        external_id: business
+                        external_id: website
                     });
                 }
 
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'event_label': situation,
                         'value': 399.00,
                         'currency': 'USD',
-                        'has_business': business ? 'yes' : 'no'
+                        'has_website': website ? 'yes' : 'no'
                     });
                 }
 

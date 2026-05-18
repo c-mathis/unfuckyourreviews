@@ -55,17 +55,16 @@ export default {
       // Insert into D1 database
       const result = await env.DB.prepare(`
         INSERT INTO leads (
-          source, name, email, phone, website, gbp_url, problem,
+          source, name, email, website, gbp_url, problem,
           selected_issues, issues_count,
           utm_source, utm_medium, utm_campaign, utm_content,
           referrer, landing_page,
           ip_address, user_agent
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         source,
         data.name,
         data.email,
-        data.phone || null,
         data.website || null,
         data.gbp_url || null,
         data.situation || null,
@@ -101,11 +100,10 @@ export default {
                 <h2>New Review Management Lead</h2>
                 <p><strong>Name:</strong> ${data.name}</p>
                 <p><strong>Email:</strong> ${data.email}</p>
-                <p><strong>Phone:</strong> ${data.phone || 'Not provided'}</p>
                 <p><strong>Website:</strong> ${data.website || 'Not provided'}</p>
                 <p><strong>Google Business Profile:</strong> ${data.gbp_url || 'Not provided'}</p>
                 <p><strong>Situation:</strong> ${data.situation || 'Not provided'}</p>
-                <p><strong>Selected Issues:</strong> ${data.selected_issues || 'None'}</p>
+                <p><strong>Selected Issues (${data.issues_count || 0}):</strong> ${data.selected_issues || 'None'}</p>
                 <p><strong>Source:</strong> ${source}</p>
                 <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
               `,
