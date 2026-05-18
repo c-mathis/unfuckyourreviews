@@ -123,6 +123,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         ln: lastName,
                         external_id: website
                     });
+
+                    // Also track Contact event (for custom conversion flexibility)
+                    fbq('track', 'Contact', {
+                        content_name: 'Review Management Service',
+                        content_category: 'Service Inquiry',
+                        value: 399.00,
+                        currency: 'USD'
+                    });
                 }
 
                 // Track Google Analytics Lead event
