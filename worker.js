@@ -45,10 +45,12 @@ export default {
       const userAgent = request.headers.get('User-Agent') || '';
       const referer = request.headers.get('referer') || '';
 
-      // Determine source
-      let source = 'reviews';
+      // Determine source based on referer
+      let source = 'unknown';
       if (referer.includes('unfuckyourweb')) source = 'web';
+      else if (referer.includes('unfuckyourreviews')) source = 'reviews';
       else if (referer.includes('unfuckyourads')) source = 'ads';
+      else if (referer.includes('unfuckyourtaxes')) source = 'taxes';
 
       console.log('About to insert into DB, binding:', typeof env.DB);
 
