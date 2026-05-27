@@ -86,6 +86,76 @@ export default {
 
       // Send email notifications if Resend is configured
       if (env.RESEND_API_KEY) {
+        // Dynamic branding based on source
+        const brandConfig = {
+          web: {
+            name: 'Unfuck Your Web',
+            subject: 'New Web Lead',
+            type: 'Web Audit',
+            userSubject: 'So your website is fucked?',
+            userMessage: `Hey ${data.name.split(' ')[0]},
+
+Got your submission.
+
+I'm looking at your website right now. I've got a breakdown coming your way in about 24 hours with what's broken and how we can fix it.
+
+I'll hit you up shortly.
+
+To unfuckery and beyond,
+— Cameron`,
+          },
+          reviews: {
+            name: 'Unfuck Your Reviews',
+            subject: 'New Review Lead',
+            type: 'Review Management',
+            userSubject: 'So your reviews are fucked?',
+            userMessage: `Hey ${data.name.split(' ')[0]},
+
+Got your submission.
+
+I'm checking out your reviews right now. I've got a video coming your way in about 24 hours. Will breakdown the situation and how we can fix it.
+
+I'll hit you up shortly.
+
+To unfuckery and beyond,
+— Cameron`,
+          },
+          ads: {
+            name: 'Unfuck Your Ads',
+            subject: 'New Ads Lead',
+            type: 'Ads Management',
+            userSubject: 'So your ads are fucked?',
+            userMessage: `Hey ${data.name.split(' ')[0]},
+
+Got your submission.
+
+I'm auditing your ad accounts right now. I've got a breakdown coming your way in about 24 hours with what's wasting money and how we can fix it.
+
+I'll hit you up shortly.
+
+To unfuckery and beyond,
+— Cameron`,
+          },
+          taxes: {
+            name: 'Unfuck Your Taxes',
+            subject: 'New Tax Lead',
+            type: 'Tax Relief',
+            userSubject: 'So your taxes are fucked?',
+            userMessage: `Hey ${data.name.split(' ')[0]},
+
+Got your submission.
+
+I'm reviewing your tax situation right now. I've got a plan coming your way in about 24 hours to get you back on track.
+
+I'll hit you up shortly.
+
+To unfuckery and beyond,
+— Cameron`,
+          },
+        };
+
+        const brand = brandConfig[source] || brandConfig.reviews;
+
         // Internal notification to you
         ctx.waitUntil(
           fetch('https://api.resend.com/emails', {
@@ -95,16 +165,15 @@ export default {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: 'Unfuck Your Reviews <leads@taxpeacenow.com>',
+              from: `${brand.name} <leads@taxpeacenow.com>`,
               to: ['cameron@axesagency.com'],
-              subject: `New Review Lead: ${data.name}`,
+              subject: `${brand.subject}: ${data.name}`,
               html: `
-                <h2>New Review Management Lead</h2>
+                <h2>New ${brand.type} Lead</h2>
                 <p><strong>Name:</strong> ${data.name}</p>
                 <p><strong>Email:</strong> ${data.email}</p>
                 <p><strong>Website:</strong> ${data.website || 'Not provided'}</p>
-                <p><strong>Google Business Profile:</strong> ${data.gbp_url || 'Not provided'}</p>
-                <p><strong>Situation:</strong> ${data.situation || 'Not provided'}</p>
+                <p><strong>Problem:</strong> ${data.problem || data.situation || 'Not provided'}</p>
                 <p><strong>Selected Issues (${data.issues_count || 0}):</strong> ${data.selected_issues || 'None'}</p>
                 <p><strong>Source:</strong> ${source}</p>
                 <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
@@ -122,20 +191,11 @@ export default {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: 'Cameron from Unfuck Your Reviews <cameron@unfuckyourreviews.com>',
+              from: `Cameron from ${brand.name} <cameron@unfuckyourreviews.com>`,
               to: [data.email],
               reply_to: 'cameron@unfuckyourreviews.com',
-              subject: 'So your reviews are fucked?',
-              text: `Hey ${data.name.split(' ')[0]},
-
-Got your submission.
-
-I'm checking out your reviews right now. I've got a video coming your way in about 24 hours. Will breakdown the situation and how we can fix it.
-
-I'll hit you up shortly.
-
-To unfuckery and beyond,
-— Cameron`,
+              subject: brand.userSubject,
+              text: brand.userMessage,
             }),
           }).catch(err => console.error('Confirmation email error:', err))
         );
