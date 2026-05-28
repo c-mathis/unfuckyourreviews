@@ -84,6 +84,26 @@ export default {
 
       console.log('Lead saved:', result.meta.last_row_id);
 
+      // Send Meta Conversions API event
+      if (env.META_ACCESS_TOKEN && source === 'web') {
+        ctx.waitUntil(sendMetaConversionEvent(env, {
+          eventName: 'Lead',
+          eventTime: Math.floor(Date.now() / 1000),
+          eventSourceUrl: data.landing_page || referer,
+          userData: {
+            email: data.email,
+            clientIpAddress: clientIp,
+            clientUserAgent: userAgent,
+          },
+          customData: {
+            content_name: 'Website Audit Request',
+            content_category: 'Lead Generation',
+            value: 0,
+            currency: 'USD',
+          },
+        }));
+      }
+
       // Send email notifications if Resend is configured
       if (env.RESEND_API_KEY) {
         // Dynamic branding based on source
@@ -371,6 +391,70 @@ async function handleGetStats(request, env) {
     );
   }
 }
+
+// ============================================
+// META CONVERSIONS API
+// ============================================
+
+async function sendMetaConversionEvent(env, eventData) {
+  const PIXEL_ID = '1494351685495599'; // Unfuck Your Web pixel
+  const url = `https://graph.facebook.com/v21.0/${PIXEL_ID}/events`;
+
+  // Hash email for privacy
+  const emailHash = await hashSHA256(eventData.userData.email);
+
+  const payload = {
+    data: [{
+      event_name: eventData.eventName,
+      event_time: eventData.eventTime,
+      event_source_url: eventData.eventSourceUrl,
+      action_source: 'website',
+      user_data: {
+        em: [emailHash], // Hashed email
+        client_ip_address: eventData.userData.clientIpAddress,
+        client_user_agent: eventData.userData.clientUserAgent,
+      },
+      custom_data: eventData.customData,
+    }],
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...payload,
+        access_token: env.META_ACCESS_TOKEN,
+      }),
+    });
+
+    const result = await response.json();
+    console.log('Meta CAPI response:', result);
+
+    if (!response.ok) {
+      console.error('Meta CAPI error:', result);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Meta CAPI request failed:', error);
+    return null;
+  }
+}
+
+async function hashSHA256(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ============================================
+// API ENDPOINT HANDLERS
+// ============================================
 
 async function handleUpdateLead(request, env) {
   try {
