@@ -85,7 +85,13 @@ export default {
       console.log('Lead saved:', result.meta.last_row_id);
 
       // Send Meta Conversions API event
-      if (env.META_ACCESS_TOKEN && source === 'web') {
+      const capiSources = ['web', 'reviews', 'ads'];
+      if (env.META_ACCESS_TOKEN && capiSources.includes(source)) {
+        const contentNames = {
+          web: 'Website Audit Request',
+          reviews: 'Review Management Service',
+          ads: 'Ads Audit Request',
+        };
         ctx.waitUntil(sendMetaConversionEvent(env, {
           eventName: 'Lead',
           eventTime: Math.floor(Date.now() / 1000),
@@ -96,9 +102,9 @@ export default {
             clientUserAgent: userAgent,
           },
           customData: {
-            content_name: 'Website Audit Request',
+            content_name: contentNames[source] || 'Lead Form Submission',
             content_category: 'Lead Generation',
-            value: 0,
+            value: 399,
             currency: 'USD',
           },
         }));
