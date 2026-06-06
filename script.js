@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     fbq('track', 'Lead', {
                         content_name: 'Review Management Service',
                         content_category: 'Service Inquiry',
-                        value: 399.00,  // Expected monthly service value
+                        value: 0,
                         currency: 'USD'
                     }, {
                         // Advanced matching for better attribution
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     fbq('track', 'Contact', {
                         content_name: 'Review Management Service',
                         content_category: 'Service Inquiry',
-                        value: 399.00,
+                        value: 0,
                         currency: 'USD'
                     });
                 }

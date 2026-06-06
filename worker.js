@@ -104,7 +104,7 @@ export default {
           customData: {
             content_name: contentNames[source] || 'Lead Form Submission',
             content_category: 'Lead Generation',
-            value: 399,
+            value: 0,
             currency: 'USD',
           },
         }));
