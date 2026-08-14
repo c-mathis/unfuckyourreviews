@@ -1,37 +1,118 @@
 // Cloudflare Worker for Unfuck Your Reviews Lead Capture
 // Handles form submissions + dashboard API
 
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  'https://unfuckyourweb.com',
+  'https://www.unfuckyourweb.com',
+  'https://unfuckyourreviews.com',
+  'https://www.unfuckyourreviews.com',
+  'https://unfuckyourtaxes.com',
+  'https://www.unfuckyourtaxes.com',
+  'https://unfuckyourads.com',
+  'https://www.unfuckyourads.com',
+  'https://cmathisdigital.com',
+  'https://www.cmathisdigital.com',
+];
+
+// Get CORS headers based on request origin
+function getCorsHeaders(request) {
+  const origin = request.headers.get('Origin');
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  return headers;
+}
+
+// Check bearer token auth for protected endpoints
+function authenticate(request, env) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return false;
+  }
+  const token = authHeader.slice(7);
+  return token === env.API_TOKEN;
+}
+
+// IP-based rate limiting: max 5 submissions per IP per hour
+async function checkRateLimit(ip, env) {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+
+  try {
+    // Clean up expired entries and get current count
+    await env.DB.prepare(
+      `DELETE FROM rate_limits WHERE window_start < ?`
+    ).bind(windowStart).run();
+
+    const result = await env.DB.prepare(
+      `SELECT count FROM rate_limits WHERE ip = ? AND window_start >= ?`
+    ).bind(ip, windowStart).first();
+
+    if (result && result.count >= 5) {
+      return false; // Rate limited
+    }
+
+    if (result) {
+      await env.DB.prepare(
+        `UPDATE rate_limits SET count = count + 1 WHERE ip = ?`
+      ).bind(ip).run();
+    } else {
+      await env.DB.prepare(
+        `INSERT INTO rate_limits (ip, count, window_start) VALUES (?, 1, ?)`
+      ).bind(ip, now.toISOString()).run();
+    }
+
+    return true; // Allowed
+  } catch (error) {
+    // If rate_limits table doesn't exist yet, allow the request
+    console.error('Rate limit check error:', error);
+    return true;
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
+    const corsHeaders = getCorsHeaders(request);
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        },
+        headers: corsHeaders,
       });
     }
 
-    // Route requests
+    // Route requests — protected API endpoints
     if (path === '/api/leads' && request.method === 'GET') {
-      return handleGetLeads(request, env);
+      if (!authenticate(request, env)) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      return handleGetLeads(request, env, corsHeaders);
     }
 
     if (path === '/api/stats' && request.method === 'GET') {
-      return handleGetStats(request, env);
+      if (!authenticate(request, env)) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      return handleGetStats(request, env, corsHeaders);
     }
 
     if (path === '/api/leads/update' && request.method === 'POST') {
-      return handleUpdateLead(request, env);
+      if (!authenticate(request, env)) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      return handleUpdateLead(request, env, corsHeaders);
     }
 
-    // Default: Form submission (POST to / or /submit)
+    // Default: Form submission (POST to / or /submit) — PUBLIC
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
     }
@@ -40,10 +121,21 @@ export default {
       const data = await request.json();
       console.log('Received data:', data);
 
+      // Honeypot field — if filled, bots get a fake success
+      if (data.company_url) {
+        return new Response(JSON.stringify({ success: true, message: 'Lead submitted successfully' }), { status: 200, headers: corsHeaders });
+      }
+
       // Get client IP and user agent
       const clientIp = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
       const userAgent = request.headers.get('User-Agent') || '';
       const referer = request.headers.get('referer') || '';
+
+      // Rate limiting: max 5 submissions per IP per hour
+      const allowed = await checkRateLimit(clientIp, env);
+      if (!allowed) {
+        return new Response(JSON.stringify({ success: false, error: 'Too many submissions. Please try again later.' }), { status: 429, headers: corsHeaders });
+      }
 
       // Determine source based on referer
       let source = 'unknown';
@@ -242,32 +334,13 @@ To unfuckery and beyond,
         }),
         {
           status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
+          headers: corsHeaders,
         }
       );
 
     } catch (error) {
       console.error('Worker error:', error);
-      console.error('Error stack:', error.stack);
-      console.error('Error name:', error.name);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: error.message || 'Internal server error',
-          errorType: error.name,
-          errorStack: error.stack
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), { status: 500, headers: corsHeaders });
     }
   }
 };
@@ -276,7 +349,7 @@ To unfuckery and beyond,
 // API ENDPOINT HANDLERS
 // ============================================
 
-async function handleGetLeads(request, env) {
+async function handleGetLeads(request, env, corsHeaders) {
   try {
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit')) || 100;
@@ -310,31 +383,19 @@ async function handleGetLeads(request, env) {
       }),
       {
         status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: corsHeaders,
       }
     );
   } catch (error) {
     console.error('Get leads error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
+      JSON.stringify({ success: false, error: 'Internal server error' }),
+      { status: 500, headers: corsHeaders }
     );
   }
 }
 
-async function handleGetStats(request, env) {
+async function handleGetStats(request, env, corsHeaders) {
   try {
     // Total leads
     const totalResult = await env.DB.prepare(
@@ -374,26 +435,14 @@ async function handleGetStats(request, env) {
       }),
       {
         status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+        headers: corsHeaders,
       }
     );
   } catch (error) {
     console.error('Get stats error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
+      JSON.stringify({ success: false, error: 'Internal server error' }),
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -462,24 +511,15 @@ async function hashSHA256(text) {
 // API ENDPOINT HANDLERS
 // ============================================
 
-async function handleUpdateLead(request, env) {
+async function handleUpdateLead(request, env, corsHeaders) {
   try {
     const data = await request.json();
     const { id, status, notes } = data;
 
     if (!id) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Lead ID is required',
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
+        JSON.stringify({ success: false, error: 'Lead ID is required' }),
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -499,17 +539,8 @@ async function handleUpdateLead(request, env) {
 
     if (updateFields.length === 0) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'No fields to update',
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        }
+        JSON.stringify({ success: false, error: 'No fields to update' }),
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -521,45 +552,27 @@ async function handleUpdateLead(request, env) {
     // Log activity
     if (status) {
       await env.DB.prepare(`
-        INSERT INTO activity_log (lead_id, action, details)
+        INSERT INTO activity_log (lead_id, activity_type, description)
         VALUES (?, 'status_change', ?)
       `).bind(id, `Status changed to: ${status}`).run();
     }
 
     if (notes !== undefined) {
       await env.DB.prepare(`
-        INSERT INTO activity_log (lead_id, action, details)
+        INSERT INTO activity_log (lead_id, activity_type, description)
         VALUES (?, 'note_added', ?)
       `).bind(id, notes).run();
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Lead updated successfully',
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
+      JSON.stringify({ success: true, message: 'Lead updated successfully' }),
+      { status: 200, headers: corsHeaders }
     );
   } catch (error) {
     console.error('Update lead error:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
+      JSON.stringify({ success: false, error: 'Internal server error' }),
+      { status: 500, headers: corsHeaders }
     );
   }
 }

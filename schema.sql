@@ -68,3 +68,10 @@ CREATE TABLE IF NOT EXISTS activity_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_lead_id ON activity_log(lead_id);
+
+-- Rate limiting table for form submission spam protection
+CREATE TABLE IF NOT EXISTS rate_limits (
+    ip TEXT PRIMARY KEY,
+    count INTEGER NOT NULL DEFAULT 1,
+    window_start TEXT NOT NULL
+);
