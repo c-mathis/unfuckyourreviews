@@ -299,16 +299,17 @@ To unfuckery and beyond,
             replyTo: 'hello@unfuckyourtaxes.com',
             subject: 'New Tax Lead',
             type: 'Tax Relief',
-            userSubject: 'We got your tax help request',
+            userFromName: 'Unfuck Your Taxes',
+            userSubject: "Let's get your taxes in line.",
             userMessage: `Hey ${data.name.split(' ')[0]},
 
-We got your request and the details you shared.
+Looks like your taxes are in fact, f*cked.
 
-Someone from Unfuck Your Taxes will review it and follow up within one business day. If a notice has a deadline, keep it handy so we can start with what is most urgent.
+Someone from Unf*ck Your Taxes will review and follow up within one business day.
 
-Please do not email Social Security numbers, bank account details, or tax documents. We will provide secure instructions if records are needed.
+Jokes aside, you're in good hands.
 
-— Unfuck Your Taxes`,
+— Unf*ck Your Taxes`,
           },
         };
 
@@ -355,7 +356,7 @@ Please do not email Social Security numbers, bank account details, or tax docume
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: `Cameron from ${brand.name} <${brand.replyTo}>`,
+              from: `${brand.userFromName || `Cameron from ${brand.name}`} <${brand.replyTo}>`,
               to: [data.email],
               reply_to: brand.replyTo,
               subject: brand.userSubject,
