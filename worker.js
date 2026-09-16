@@ -319,6 +319,21 @@ Jokes aside, you're in good hands.
           ? env.UFYT_NOTIFICATION_EMAILS.split(',').map(email => email.trim()).filter(Boolean)
           : ['cameron@axesagency.com'];
 
+        const internalNotificationHtml = source === 'taxes'
+          ? buildUfytSalesNotification(data, result.meta.last_row_id)
+          : `
+                <h2>New ${brand.type} Lead</h2>
+                <p><strong>Name:</strong> ${escapeHtml(data.name)}</p>
+                <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+                <p><strong>Phone:</strong> ${escapeHtml(data.phone || 'Not provided')}</p>
+                <p><strong>Website:</strong> ${escapeHtml(data.website || 'Not provided')}</p>
+                <p><strong>Problem:</strong><br>${escapeHtml(data.problem || data.situation || 'Not provided').replace(/\n/g, '<br>')}</p>
+                <p><strong>Selected Issues (${parseInt(data.issues_count) || 0}):</strong> ${escapeHtml(data.selected_issues || 'None')}</p>
+                <p><strong>Campaign:</strong> ${escapeHtml(data.utm_campaign || 'Direct / unknown')}</p>
+                <p><strong>Source:</strong> ${escapeHtml(source)}</p>
+                <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
+              `;
+
         // Internal notification
         ctx.waitUntil(
           fetch('https://api.resend.com/emails', {
@@ -331,18 +346,7 @@ Jokes aside, you're in good hands.
               from: `${brand.name} <${brand.fromEmail}>`,
               to: notificationEmails,
               subject: `${brand.subject}: ${data.name}`,
-              html: `
-                <h2>New ${brand.type} Lead</h2>
-                <p><strong>Name:</strong> ${escapeHtml(data.name)}</p>
-                <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
-                <p><strong>Phone:</strong> ${escapeHtml(data.phone || 'Not provided')}</p>
-                <p><strong>Website:</strong> ${escapeHtml(data.website || 'Not provided')}</p>
-                <p><strong>Problem:</strong><br>${escapeHtml(data.problem || data.situation || 'Not provided').replace(/\n/g, '<br>')}</p>
-                <p><strong>Selected Issues (${parseInt(data.issues_count) || 0}):</strong> ${escapeHtml(data.selected_issues || 'None')}</p>
-                <p><strong>Campaign:</strong> ${escapeHtml(data.utm_campaign || 'Direct / unknown')}</p>
-                <p><strong>Source:</strong> ${escapeHtml(source)}</p>
-                <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
-              `,
+              html: internalNotificationHtml,
             }),
           }).catch(err => console.error('Internal email error:', err))
         );
@@ -575,6 +579,41 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function buildUfytSalesNotification(data, leadId) {
+  const followUpFields = [
+    ['debt_amount', 'Approximately how much do you owe?'],
+    ['collection_actions', 'Have you received any of the following?'],
+    ['unfiled_years', 'How many years are unfiled?'],
+    ['self_employed', 'Are you self-employed?'],
+    ['notice_type', 'What type of notice did you receive?'],
+    ['notice_deadline', 'What is the deadline listed on the notice?'],
+    ['filing_status', 'Are you filing as:'],
+    ['refund_expectation', 'Do you expect to owe or receive a refund?'],
+    ['unsure_situation', 'Which of these sounds closest to your situation?'],
+    ['urgency', 'Is anything urgent?'],
+    ['amount_owed', 'Amount owed'],
+    ['details', 'Additional details'],
+  ];
+  const answerHtml = followUpFields
+    .filter(([key]) => data[key] !== null && data[key] !== undefined && String(data[key]).trim() !== '')
+    .map(([key, question]) => `<p><strong>${escapeHtml(question)}</strong><br>${escapeHtml(data[key])}</p>`)
+    .join('');
+  const taxProblem = data.tax_problem || data.problem || data.situation || 'Not provided';
+
+  return `
+    <h2>New Tax Lead</h2>
+    <p><strong>Name:</strong> ${escapeHtml(data.name)}</p>
+    <p><strong>Email:</strong> <a href="mailto:${escapeHtml(data.email)}">${escapeHtml(data.email)}</a></p>
+    <p><strong>Phone:</strong> <a href="tel:${escapeHtml(data.phone || '')}">${escapeHtml(data.phone || 'Not provided')}</a></p>
+    <hr>
+    <h3>Submitted answers</h3>
+    <p><strong>What’s going on with your taxes?</strong><br>${escapeHtml(taxProblem)}</p>
+    ${answerHtml}
+    <p><a href="https://ufyt-leads-dashboard.cameron-07f.workers.dev">Open this lead in the UFYT Lead Desk</a></p>
+    <p><small>Lead ID: ${escapeHtml(leadId)}</small></p>
+  `;
 }
 
 // ============================================
