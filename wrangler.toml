@@ -1,6 +1,8 @@
 name = "unfuck-leads-worker"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+workers_dev = true
+preview_urls = true
 
 # D1 Database binding
 [[d1_databases]]
@@ -8,7 +10,8 @@ binding = "DB"
 database_name = "unfuck-leads"
 database_id = "20ec98a7-8f00-48ed-938a-bc1c4946bf40"
 
-# Routes - commented out for now since DNS not configured
-# [[routes]]
-# pattern = "leads.unfuckyourweb.com/*"
-# zone_name = "unfuckyourweb.com"
+# Keep the existing custom route in deploy configuration so Wrangler does not
+# remove it when the workers.dev version is updated.
+[[routes]]
+pattern = "leads.unfuckyourweb.com/*"
+zone_name = "unfuckyourweb.com"

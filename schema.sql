@@ -23,8 +23,18 @@ CREATE TABLE IF NOT EXISTS leads (
     utm_medium TEXT,
     utm_campaign TEXT,
     utm_content TEXT,
+    utm_term TEXT,
     referrer TEXT,
     landing_page TEXT,
+    fbclid TEXT,
+    gclid TEXT,
+
+    -- Brand-specific structured capture (the dashboard can render the JSON)
+    brand TEXT,
+    surface TEXT,
+    event_id TEXT,
+    triage_score INTEGER DEFAULT 0,
+    payload_json TEXT,
 
     -- Lead Status
     status TEXT DEFAULT 'new',         -- 'new', 'contacted', 'qualified', 'proposal_sent', 'won', 'lost'

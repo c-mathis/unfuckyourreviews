@@ -31,6 +31,7 @@ function getCorsHeaders(request) {
 
 // Check bearer token auth for protected endpoints
 function authenticate(request, env) {
+  if (!env.API_TOKEN) return false;
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return false;
@@ -119,7 +120,6 @@ export default {
 
     try {
       const data = await request.json();
-      console.log('Received data:', data);
 
       // Honeypot field — if filled, bots get a fake success
       if (data.company_url) {
@@ -137,61 +137,92 @@ export default {
         return new Response(JSON.stringify({ success: false, error: 'Too many submissions. Please try again later.' }), { status: 429, headers: corsHeaders });
       }
 
-      // Determine source based on referer
+      // Determine source based on referer. The explicit source is only used as
+      // a local-development fallback and is restricted to known brands.
       let source = 'unknown';
       if (referer.includes('unfuckyourweb')) source = 'web';
       else if (referer.includes('unfuckyourreviews')) source = 'reviews';
       else if (referer.includes('unfuckyourads')) source = 'ads';
       else if (referer.includes('unfuckyourtaxes')) source = 'taxes';
+      else {
+        const explicitSources = {
+          unfuckyourweb: 'web',
+          unfuckyourreviews: 'reviews',
+          unfuckyourads: 'ads',
+          unfuckyourtaxes: 'taxes',
+          ufyt: 'taxes',
+        };
+        source = explicitSources[data.source] || explicitSources[data.brand] || 'unknown';
+      }
 
-      console.log('About to insert into DB, binding:', typeof env.DB);
+      console.log('Lead submission:', { source, eventId: data.event_id || null });
 
       // Insert into D1 database
       const result = await env.DB.prepare(`
         INSERT INTO leads (
-          source, name, email, website, gbp_url, problem,
+          source, name, email, phone, website, gbp_url, problem,
           selected_issues, issues_count,
-          utm_source, utm_medium, utm_campaign, utm_content,
+          utm_source, utm_medium, utm_campaign, utm_content, utm_term,
           referrer, landing_page,
-          ip_address, user_agent
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ip_address, user_agent, brand, surface, event_id,
+          triage_score, fbclid, gclid, payload_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         source,
         data.name,
         data.email,
+        data.phone || null,
         data.website || null,
         data.gbp_url || null,
-        data.situation || null,
+        data.problem || data.situation || null,
         data.selected_issues || null,
         parseInt(data.issues_count) || 0,
         data.utm_source || null,
         data.utm_medium || null,
         data.utm_campaign || null,
         data.utm_content || null,
+        data.utm_term || null,
         data.referrer || referer || null,
         data.landing_page || null,
         clientIp,
-        userAgent
+        userAgent,
+        data.brand || null,
+        data.surface || null,
+        data.event_id || null,
+        parseInt(data.internal_triage_score) || 0,
+        data.fbclid || null,
+        data.gclid || null,
+        JSON.stringify(data)
       ).run();
 
       console.log('Lead saved:', result.meta.last_row_id);
 
       // Send Meta Conversions API event
-      const capiSources = ['web', 'reviews', 'ads'];
-      if (env.META_ACCESS_TOKEN && capiSources.includes(source)) {
+      const metaConfig = source === 'taxes'
+        ? { token: env.UFYT_META_ACCESS_TOKEN, pixelId: '1708599440630382', contentName: 'Tax Help Request' }
+        : { token: env.META_ACCESS_TOKEN, pixelId: '1494351685495599', contentName: null };
+      const capiSources = ['web', 'reviews', 'ads', 'taxes'];
+      if (metaConfig.token && capiSources.includes(source)) {
         const contentNames = {
           web: 'Website Audit Request',
           reviews: 'Review Management Service',
           ads: 'Ads Audit Request',
+          taxes: metaConfig.contentName,
         };
-        ctx.waitUntil(sendMetaConversionEvent(env, {
+        ctx.waitUntil(sendMetaConversionEvent(metaConfig.token, metaConfig.pixelId, {
           eventName: 'Lead',
           eventTime: Math.floor(Date.now() / 1000),
+          eventId: data.event_id || null,
           eventSourceUrl: data.landing_page || referer,
           userData: {
             email: data.email,
+            phone: data.phone,
+            firstName: data.first_name,
+            lastName: data.last_name,
             clientIpAddress: clientIp,
             clientUserAgent: userAgent,
+            fbp: data.fbp || getCookie(request, '_fbp'),
+            fbc: data.fbc || getCookie(request, '_fbc') || makeFbc(data.fbclid, data.submitted_at),
           },
           customData: {
             content_name: contentNames[source] || 'Lead Form Submission',
@@ -202,8 +233,10 @@ export default {
         }));
       }
 
-      // Send email notifications if Resend is configured
-      if (env.RESEND_API_KEY) {
+      // Use a brand-scoped key for UFYT so the shared worker does not mix
+      // domains or permissions across the Unfuck brand family.
+      const resendApiKey = source === 'taxes' ? env.UFYT_RESEND_API_KEY : env.RESEND_API_KEY;
+      if (resendApiKey) {
         // Dynamic branding based on source
         const brandConfig = {
           web: {
@@ -263,45 +296,50 @@ To unfuckery and beyond,
           taxes: {
             name: 'Unfuck Your Taxes',
             fromEmail: 'leads@unfuckyourtaxes.com',
-            replyTo: 'cameron@unfuckyourtaxes.com',
+            replyTo: 'hello@unfuckyourtaxes.com',
             subject: 'New Tax Lead',
             type: 'Tax Relief',
-            userSubject: 'So your taxes are fucked?',
+            userSubject: 'We got your tax help request',
             userMessage: `Hey ${data.name.split(' ')[0]},
 
-Got your submission.
+We got your request and the details you shared.
 
-I'm reviewing your tax situation right now. I've got a plan coming your way in about 24 hours to get you back on track.
+Someone from Unfuck Your Taxes will review it and follow up within one business day. If a notice has a deadline, keep it handy so we can start with what is most urgent.
 
-I'll hit you up shortly.
+Please do not email Social Security numbers, bank account details, or tax documents. We will provide secure instructions if records are needed.
 
-To unfuckery and beyond,
-— Cameron`,
+— Unfuck Your Taxes`,
           },
         };
 
         const brand = brandConfig[source] || brandConfig.reviews;
 
-        // Internal notification to you
+        const notificationEmails = source === 'taxes' && env.UFYT_NOTIFICATION_EMAILS
+          ? env.UFYT_NOTIFICATION_EMAILS.split(',').map(email => email.trim()).filter(Boolean)
+          : ['cameron@axesagency.com'];
+
+        // Internal notification
         ctx.waitUntil(
           fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+              'Authorization': `Bearer ${resendApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               from: `${brand.name} <${brand.fromEmail}>`,
-              to: ['cameron@axesagency.com'],
+              to: notificationEmails,
               subject: `${brand.subject}: ${data.name}`,
               html: `
                 <h2>New ${brand.type} Lead</h2>
-                <p><strong>Name:</strong> ${data.name}</p>
-                <p><strong>Email:</strong> ${data.email}</p>
-                <p><strong>Website:</strong> ${data.website || 'Not provided'}</p>
-                <p><strong>Problem:</strong> ${data.problem || data.situation || 'Not provided'}</p>
-                <p><strong>Selected Issues (${data.issues_count || 0}):</strong> ${data.selected_issues || 'None'}</p>
-                <p><strong>Source:</strong> ${source}</p>
+                <p><strong>Name:</strong> ${escapeHtml(data.name)}</p>
+                <p><strong>Email:</strong> ${escapeHtml(data.email)}</p>
+                <p><strong>Phone:</strong> ${escapeHtml(data.phone || 'Not provided')}</p>
+                <p><strong>Website:</strong> ${escapeHtml(data.website || 'Not provided')}</p>
+                <p><strong>Problem:</strong><br>${escapeHtml(data.problem || data.situation || 'Not provided').replace(/\n/g, '<br>')}</p>
+                <p><strong>Selected Issues (${parseInt(data.issues_count) || 0}):</strong> ${escapeHtml(data.selected_issues || 'None')}</p>
+                <p><strong>Campaign:</strong> ${escapeHtml(data.utm_campaign || 'Direct / unknown')}</p>
+                <p><strong>Source:</strong> ${escapeHtml(source)}</p>
                 <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
               `,
             }),
@@ -313,7 +351,7 @@ To unfuckery and beyond,
           fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+              'Authorization': `Bearer ${resendApiKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -451,24 +489,29 @@ async function handleGetStats(request, env, corsHeaders) {
 // META CONVERSIONS API
 // ============================================
 
-async function sendMetaConversionEvent(env, eventData) {
-  const PIXEL_ID = '1494351685495599'; // Unfuck Your Web pixel
-  const url = `https://graph.facebook.com/v21.0/${PIXEL_ID}/events`;
+async function sendMetaConversionEvent(accessToken, pixelId, eventData) {
+  const url = `https://graph.facebook.com/v21.0/${pixelId}/events`;
+  const hashedUserData = {
+    em: eventData.userData.email ? [await hashSHA256(eventData.userData.email)] : undefined,
+    ph: eventData.userData.phone ? [await hashSHA256(normalizePhone(eventData.userData.phone))] : undefined,
+    fn: eventData.userData.firstName ? [await hashSHA256(eventData.userData.firstName)] : undefined,
+    ln: eventData.userData.lastName ? [await hashSHA256(eventData.userData.lastName)] : undefined,
+    client_ip_address: eventData.userData.clientIpAddress,
+    client_user_agent: eventData.userData.clientUserAgent,
+    fbp: eventData.userData.fbp || undefined,
+    fbc: eventData.userData.fbc || undefined,
+  };
 
-  // Hash email for privacy
-  const emailHash = await hashSHA256(eventData.userData.email);
+  Object.keys(hashedUserData).forEach(key => hashedUserData[key] === undefined && delete hashedUserData[key]);
 
   const payload = {
     data: [{
       event_name: eventData.eventName,
       event_time: eventData.eventTime,
+      event_id: eventData.eventId || undefined,
       event_source_url: eventData.eventSourceUrl,
       action_source: 'website',
-      user_data: {
-        em: [emailHash], // Hashed email
-        client_ip_address: eventData.userData.clientIpAddress,
-        client_user_agent: eventData.userData.clientUserAgent,
-      },
+      user_data: hashedUserData,
       custom_data: eventData.customData,
     }],
   };
@@ -481,7 +524,7 @@ async function sendMetaConversionEvent(env, eventData) {
       },
       body: JSON.stringify({
         ...payload,
-        access_token: env.META_ACCESS_TOKEN,
+        access_token: accessToken,
       }),
     });
 
@@ -505,6 +548,32 @@ async function hashSHA256(text) {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function normalizePhone(phone) {
+  const digits = String(phone).replace(/\D/g, '');
+  return digits.length === 10 ? `1${digits}` : digits;
+}
+
+function getCookie(request, name) {
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const match = cookieHeader.split(';').map(value => value.trim()).find(value => value.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+function makeFbc(fbclid, submittedAt) {
+  if (!fbclid) return null;
+  const timestamp = submittedAt ? Date.parse(submittedAt) : Date.now();
+  return `fb.1.${Number.isFinite(timestamp) ? timestamp : Date.now()}.${fbclid}`;
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 // ============================================

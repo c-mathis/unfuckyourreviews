@@ -1,0 +1,16 @@
+ALTER TABLE leads ADD COLUMN utm_term TEXT;
+ALTER TABLE leads ADD COLUMN fbclid TEXT;
+ALTER TABLE leads ADD COLUMN gclid TEXT;
+ALTER TABLE leads ADD COLUMN brand TEXT;
+ALTER TABLE leads ADD COLUMN surface TEXT;
+ALTER TABLE leads ADD COLUMN event_id TEXT;
+ALTER TABLE leads ADD COLUMN triage_score INTEGER DEFAULT 0;
+ALTER TABLE leads ADD COLUMN payload_json TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_leads_event_id ON leads(event_id);
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  ip TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 1,
+  window_start TEXT NOT NULL
+);
