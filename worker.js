@@ -113,6 +113,14 @@ export default {
       return handleUpdateLead(request, env, corsHeaders);
     }
 
+    if (path === '/api/sync-communications' && request.method === 'POST') {
+      const bearer = request.headers.get('Authorization') || '';
+      if (!env.COMMUNICATIONS_SYNC_TOKEN || bearer !== `Bearer ${env.COMMUNICATIONS_SYNC_TOKEN}`) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      return handleCommunicationsSync(env, corsHeaders);
+    }
+
     // Default: Form submission (POST to / or /submit) — PUBLIC
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
@@ -196,6 +204,20 @@ export default {
       ).run();
 
       console.log('Lead saved:', result.meta.last_row_id);
+
+      // Mirror UFYT leads into the Mathis Communications OS. This runs after
+      // the local D1 write, is idempotent by lead ID, and never blocks the
+      // public form response if the communications service is unavailable.
+      if (source === 'taxes' && env.COMMUNICATIONS_INGEST_SECRET) {
+        ctx.waitUntil(
+          sendUfytLeadToCommunications({
+            endpoint: env.COMMUNICATIONS_INGEST_URL || 'https://mathis-communications.mathisllc.workers.dev/api/integrations/leads',
+            secret: env.COMMUNICATIONS_INGEST_SECRET,
+            leadId: result.meta.last_row_id,
+            lead: data,
+          }).catch(error => console.error('UFYT communications sync error:', error.message))
+        );
+      }
 
       // Keep UFYT SMS alerts privacy-minimized and brand-scoped. The helper
       // is disabled unless every required Twilio setting is present.
@@ -608,6 +630,72 @@ function buildUfytSmsAlertBody(lead, leadId) {
   const name = String(lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Unknown name').trim();
   const phone = String(lead.phone || 'No phone provided').trim();
   return `New UFYT lead: ${name}\n${phone}\nLead #${leadId}: https://ufyt-leads-dash.pages.dev`;
+}
+
+async function sendUfytLeadToCommunications(config) {
+  const lead = config.lead;
+  const response = await fetch(config.endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.secret}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      id: config.leadId,
+      source: 'taxes',
+      name: String(lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Unknown lead').trim(),
+      email: String(lead.email || '').trim(),
+      phone: lead.phone ? String(lead.phone).trim() : null,
+      problem: lead.problem || lead.situation || null,
+      status: 'new',
+      priority: Number(lead.internal_triage_score || 0) >= 70 ? 'high' : 'medium',
+      createdAt: lead.created_at || new Date().toISOString(),
+      externalUrl: 'https://ufyt-leads-dash.pages.dev',
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Communications OS returned HTTP ${response.status}`);
+  }
+}
+
+async function handleCommunicationsSync(env, corsHeaders) {
+  if (!env.COMMUNICATIONS_INGEST_SECRET) {
+    return new Response(JSON.stringify({ success: false, error: 'Communications integration is not configured' }), {
+      status: 503,
+      headers: corsHeaders,
+    });
+  }
+  const result = await env.DB.prepare(`
+    SELECT id, source, name, email, phone, problem, status, priority, created_at
+    FROM leads
+    WHERE source = 'taxes' OR brand IN ('unfuckyourtaxes', 'ufyt')
+    ORDER BY id
+    LIMIT 1000
+  `).all();
+  const endpoint = env.COMMUNICATIONS_INGEST_URL || 'https://mathis-communications.mathisllc.workers.dev/api/integrations/leads';
+  let synced = 0;
+  const failures = [];
+  for (const lead of result.results) {
+    try {
+      await sendUfytLeadToCommunications({
+        endpoint,
+        secret: env.COMMUNICATIONS_INGEST_SECRET,
+        leadId: lead.id,
+        lead: {
+          ...lead,
+          situation: lead.problem,
+          internal_triage_score: lead.priority === 'high' ? 100 : 0,
+        },
+      });
+      synced += 1;
+    } catch (error) {
+      failures.push({ id: lead.id, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  return new Response(JSON.stringify({ success: failures.length === 0, total: result.results.length, synced, failures }), {
+    status: failures.length ? 502 : 200,
+    headers: corsHeaders,
+  });
 }
 
 async function sendUfytSmsLeadAlerts(config) {
