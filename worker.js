@@ -205,7 +205,7 @@ export default {
 
       console.log('Lead saved:', result.meta.last_row_id);
 
-      // Mirror UFYT leads into the Mathis Communications OS. This runs after
+      // Mirror UFYT leads into the Fortifi communications backend. This runs after
       // the local D1 write, is idempotent by lead ID, and never blocks the
       // public form response if the communications service is unavailable.
       if (source === 'taxes' && env.COMMUNICATIONS_INGEST_SECRET) {
@@ -654,7 +654,7 @@ async function sendUfytLeadToCommunications(config) {
     }),
   });
   if (!response.ok) {
-    throw new Error(`Communications OS returned HTTP ${response.status}`);
+    throw new Error(`UFYT Inbox returned HTTP ${response.status}`);
   }
 }
 
@@ -766,7 +766,7 @@ function buildUfytSalesNotification(data, leadId) {
     <h3>Submitted answers</h3>
     <p><strong>What’s going on with your taxes?</strong><br>${escapeHtml(taxProblem)}</p>
     ${answerHtml}
-    <p><a href="https://inbox.mathisllc.dev">Open this lead in the UFYT shared inbox to follow up</a></p>
+    <p><a href="https://inbox.ufyt.dev">Open this lead in the UFYT shared inbox to follow up</a></p>
     <p><small>Lead ID: ${escapeHtml(leadId)}</small></p>
   `;
 }
