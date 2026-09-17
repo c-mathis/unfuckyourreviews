@@ -197,6 +197,31 @@ export default {
 
       console.log('Lead saved:', result.meta.last_row_id);
 
+      // Keep UFYT SMS alerts privacy-minimized and brand-scoped. The helper
+      // is disabled unless every required Twilio setting is present.
+      if (source === 'taxes') {
+        const smsRecipients = getUfytSmsAlertRecipients(env.UFYT_SMS_NOTIFICATION_NUMBERS);
+        const smsConfigured = env.UFYT_TWILIO_ACCOUNT_SID
+          && env.UFYT_TWILIO_API_KEY_SID
+          && env.UFYT_TWILIO_API_KEY_SECRET
+          && env.UFYT_TWILIO_MESSAGING_SERVICE_SID
+          && smsRecipients.length > 0;
+
+        if (smsConfigured) {
+          ctx.waitUntil(
+            sendUfytSmsLeadAlerts({
+              accountSid: env.UFYT_TWILIO_ACCOUNT_SID,
+              apiKeySid: env.UFYT_TWILIO_API_KEY_SID,
+              apiKeySecret: env.UFYT_TWILIO_API_KEY_SECRET,
+              messagingServiceSid: env.UFYT_TWILIO_MESSAGING_SERVICE_SID,
+              recipients: smsRecipients,
+              lead: data,
+              leadId: result.meta.last_row_id,
+            }).catch(error => console.error('UFYT SMS alert error:', error.message))
+          );
+        }
+      }
+
       // Send Meta Conversions API event
       const metaConfig = source === 'taxes'
         ? { token: env.UFYT_META_ACCESS_TOKEN, pixelId: '1708599440630382', contentName: 'Tax Help Request' }
@@ -572,6 +597,48 @@ function makeFbc(fbclid, submittedAt) {
   return `fb.1.${Number.isFinite(timestamp) ? timestamp : Date.now()}.${fbclid}`;
 }
 
+function getUfytSmsAlertRecipients(value) {
+  return String(value || '')
+    .split(',')
+    .map(phone => phone.trim())
+    .filter(phone => /^\+[1-9]\d{7,14}$/.test(phone));
+}
+
+function buildUfytSmsAlertBody(lead, leadId) {
+  const name = String(lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Unknown name').trim();
+  const phone = String(lead.phone || 'No phone provided').trim();
+  return `New UFYT lead: ${name}\n${phone}\nLead #${leadId}: https://ufyt-leads-dash.pages.dev`;
+}
+
+async function sendUfytSmsLeadAlerts(config) {
+  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`;
+  const authorization = `Basic ${btoa(`${config.apiKeySid}:${config.apiKeySecret}`)}`;
+  const body = buildUfytSmsAlertBody(config.lead, config.leadId);
+
+  return Promise.all(config.recipients.map(async recipient => {
+    const form = new URLSearchParams({
+      To: recipient,
+      MessagingServiceSid: config.messagingServiceSid,
+      Body: body,
+    });
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: authorization,
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body: form.toString(),
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(`Twilio request failed (${response.status}, code ${result.code || 'unknown'})`);
+    }
+
+    return { sid: result.sid, status: result.status };
+  }));
+}
+
 function escapeHtml(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -685,3 +752,5 @@ async function handleUpdateLead(request, env, corsHeaders) {
     );
   }
 }
+
+export { buildUfytSmsAlertBody, getUfytSmsAlertRecipients, sendUfytSmsLeadAlerts };
