@@ -766,7 +766,7 @@ function buildUfytSalesNotification(data, leadId) {
     <h3>Submitted answers</h3>
     <p><strong>What’s going on with your taxes?</strong><br>${escapeHtml(taxProblem)}</p>
     ${answerHtml}
-    <p><a href="https://ufyt-leads-dash.pages.dev">Open this lead in the UFYT Lead Desk</a></p>
+    <p><a href="https://inbox.mathisllc.dev">Open this lead in the UFYT shared inbox to follow up</a></p>
     <p><small>Lead ID: ${escapeHtml(leadId)}</small></p>
   `;
 }
