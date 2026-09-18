@@ -88,6 +88,8 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 - 2026-09-18 — Whisper is announce-only (no press-1 screening) — keeps pickup friction at zero; the trade-off is that a carrier voicemail can count as answered. Revisit if missed-call alerts look wrong in the first week.
 - 2026-09-18 — Unknown callers become a lead with a synthetic `phone-<digits>@calls.unfuckyourtaxes.com` email — the leads table and the inbox contact model both key on email; the address is never mailed.
 
+- 2026-09-18 — Twilio blocks number purchase until Trust Hub KYC is approved (error 20003, "Primary compliance profile is not approved"). Parent account has no Primary Customer Profile and no numbers; subaccount `Forti.fi / UFYT` was created but cannot buy numbers yet. Cameron completes the Primary Business Profile (Mathis LLC) and a Secondary Customer Profile (Forti.fi LLC) assigned to the subaccount; then rerun `scripts/provision-twilio.mjs --apply-secrets`.
+
 ## Definition of Done
 - [ ] A call to either tracking number rings the sales phone with a whisper naming the source and is recorded after the disclosure
 - [ ] Every call appears in the calls table, the Lead Desk, and the lead's Communications OS conversation

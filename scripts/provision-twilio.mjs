@@ -48,7 +48,9 @@ const NUMBERS = [
 
 const API = 'https://api.twilio.com/2010-04-01';
 const MESSAGING = 'https://messaging.twilio.com/v1';
-const auth = `Basic ${Buffer.from(`${parentSid}:${parentToken}`).toString('base64')}`;
+// Starts as the parent; switches to the subaccount's own token once resolved,
+// because messaging.twilio.com and Keys must be authenticated as that account.
+let auth = `Basic ${Buffer.from(`${parentSid}:${parentToken}`).toString('base64')}`;
 
 async function twilio(method, url, form) {
   const response = await fetch(url, {
@@ -117,9 +119,8 @@ async function ensureNumber(accountSid, spec) {
 }
 
 async function ensureMessagingService(accountSid, numbers) {
-  const serviceAuth = auth; // parent creds work for subaccount resources
-  const headers = { Authorization: serviceAuth };
-  const listResponse = await fetch(`${MESSAGING}/Services?PageSize=50`, { headers: { ...headers, 'X-Twilio-AccountSid': accountSid } });
+  const headers = { Authorization: auth };
+  const listResponse = await fetch(`${MESSAGING}/Services?PageSize=50`, { headers });
   const list = await listResponse.json();
   let service = (list.services || []).find(s => s.friendly_name === 'UFYT' && s.account_sid === accountSid);
   const form = {
@@ -132,7 +133,7 @@ async function ensureMessagingService(accountSid, numbers) {
   };
   if (DRY_RUN) { log('[dry-run] Would ensure Messaging Service', service ? `existing ${service.sid}` : 'create UFYT'); return service || { sid: 'MG_dry_run' }; }
   const request = async (method, url, body) => {
-    const response = await fetch(url, { method, headers: { ...headers, 'X-Twilio-AccountSid': accountSid, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body).toString() });
+    const response = await fetch(url, { method, headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(body).toString() });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) { const e = new Error(`${method} ${url} -> ${response.status}: ${data.message || ''}`); e.code = data.code; throw e; }
     return data;
@@ -166,6 +167,10 @@ function applySecret(name, value) {
 
 const account = await resolveAccount();
 const accountSid = account.sid;
+if (account.auth_token && account.sid !== parentSid) {
+  auth = `Basic ${Buffer.from(`${account.sid}:${account.auth_token}`).toString('base64')}`;
+  log('Switched to subaccount credentials', account.sid);
+}
 const numbers = [];
 for (const spec of NUMBERS) numbers.push({ ...spec, ...(await ensureNumber(accountSid, spec)) });
 const service = await ensureMessagingService(accountSid, numbers);
