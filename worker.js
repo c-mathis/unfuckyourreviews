@@ -121,6 +121,18 @@ export default {
       return handleCommunicationsSync(env, corsHeaders);
     }
 
+    if (path === '/api/calls' && request.method === 'GET') {
+      if (!authenticate(request, env)) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      return handleGetCalls(request, env, corsHeaders);
+    }
+
+    // Twilio voice webhooks for the UFYT tracking numbers (signature-verified).
+    if (path.startsWith('/api/calls/')) {
+      return handleCallRoute(request, env, ctx, path);
+    }
+
     // Default: Form submission (POST to / or /submit) — PUBLIC
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
@@ -512,6 +524,8 @@ async function handleGetStats(request, env, corsHeaders) {
       "SELECT COUNT(*) as count FROM leads WHERE created_at >= DATE('now', '-7 days')"
     ).first();
 
+    const callStats = await getCallStats(env);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -521,6 +535,7 @@ async function handleGetStats(request, env, corsHeaders) {
           week: weekResult.count,
           by_source: sourceResult.results,
           by_status: statusResult.results,
+          calls: callStats,
         },
       }),
       {
@@ -699,9 +714,13 @@ async function handleCommunicationsSync(env, corsHeaders) {
 }
 
 async function sendUfytSmsLeadAlerts(config) {
+  return sendUfytSms({ ...config, body: buildUfytSmsAlertBody(config.lead, config.leadId) });
+}
+
+async function sendUfytSms(config) {
   const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`;
   const authorization = `Basic ${btoa(`${config.apiKeySid}:${config.apiKeySecret}`)}`;
-  const body = buildUfytSmsAlertBody(config.lead, config.leadId);
+  const body = config.body;
 
   return Promise.all(config.recipients.map(async recipient => {
     const form = new URLSearchParams({
@@ -725,6 +744,560 @@ async function sendUfytSmsLeadAlerts(config) {
 
     return { sid: result.sid, status: result.status };
   }));
+}
+
+// ============================================
+// CALL TRACKING (Twilio voice webhooks)
+// ============================================
+//
+// Two static UFYT tracking numbers (email follow-up, Meta ads) forward to the
+// sales phone. Every call is written to the `calls` table and linked to a lead
+// by phone number. Configuration lives in Worker secrets:
+//   UFYT_TWILIO_AUTH_TOKEN   subaccount auth token used to verify webhook signatures
+//   UFYT_CALL_FORWARD_NUMBER E.164 sales phone the calls are bridged to
+//   UFYT_TRACKING_NUMBERS    "+19165550100=email-followup,+19165550101=meta-ads" (or JSON object)
+//   UFYT_CALL_GREETING       optional override for the recording disclosure
+
+const DEFAULT_CALL_GREETING = 'Thanks for calling Unfuck Your Taxes. This call may be recorded. One moment while we connect you.';
+const MISSED_CALL_MESSAGE = "Sorry, we couldn't grab that in time. Someone from Unfuck Your Taxes will call you back shortly.";
+const CALL_SOURCE_SPOKEN = {
+  'email-followup': 'the email follow up number',
+  'meta-ads': 'the Meta ads number',
+};
+
+function isE164(value) {
+  return /^\+[1-9]\d{7,14}$/.test(String(value || ''));
+}
+
+function phoneDigits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function parseTrackingNumberMap(value) {
+  const map = new Map();
+  const raw = String(value || '').trim();
+  if (!raw) return map;
+  if (raw.startsWith('{')) {
+    try {
+      for (const [number, label] of Object.entries(JSON.parse(raw))) {
+        if (isE164(number) && String(label || '').trim()) map.set(number, String(label).trim());
+      }
+    } catch (error) {
+      console.error('UFYT_TRACKING_NUMBERS JSON parse error:', error.message);
+    }
+    return map;
+  }
+  for (const entry of raw.split(',')) {
+    const [number, label] = entry.split('=').map(part => (part || '').trim());
+    if (isE164(number) && label) map.set(number, label);
+  }
+  return map;
+}
+
+function getUfytCallConfig(env) {
+  const trackingNumbers = parseTrackingNumberMap(env.UFYT_TRACKING_NUMBERS);
+  if (!env.UFYT_TWILIO_AUTH_TOKEN || !isE164(env.UFYT_CALL_FORWARD_NUMBER) || trackingNumbers.size === 0) {
+    return null;
+  }
+  return {
+    authToken: env.UFYT_TWILIO_AUTH_TOKEN,
+    forwardTo: env.UFYT_CALL_FORWARD_NUMBER,
+    trackingNumbers,
+    greeting: env.UFYT_CALL_GREETING || DEFAULT_CALL_GREETING,
+    dialTimeoutSeconds: 25,
+  };
+}
+
+function spokenCallSource(source) {
+  return CALL_SOURCE_SPOKEN[source] || String(source || 'a tracking number').replace(/[-_]+/g, ' ');
+}
+
+function escapeXml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function twimlResponse(body, status = 200) {
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?>\n<Response>${body}</Response>`, {
+    status,
+    headers: { 'Content-Type': 'text/xml; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
+// Twilio signs webhooks with HMAC-SHA1 over the full request URL followed by
+// the POST parameters sorted by key. See
+// https://www.twilio.com/docs/usage/webhooks/webhooks-security
+async function computeTwilioSignature(authToken, url, params) {
+  const keys = Object.keys(params).sort();
+  let data = url;
+  for (const key of keys) data += key + params[key];
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(authToken),
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, new TextEncoder().encode(data));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+}
+
+function constantTimeEqual(left, right) {
+  const a = new TextEncoder().encode(String(left || ''));
+  const b = new TextEncoder().encode(String(right || ''));
+  if (a.byteLength !== b.byteLength) return false;
+  let difference = 0;
+  for (let index = 0; index < a.byteLength; index += 1) difference |= a[index] ^ b[index];
+  return difference === 0;
+}
+
+async function verifyTwilioSignature(request, authToken, params) {
+  const supplied = request.headers.get('X-Twilio-Signature') || '';
+  if (!supplied) return false;
+  const url = new URL(request.url);
+  // Twilio may sign the URL with or without an explicit default port.
+  const candidates = [url.toString()];
+  if (!url.port) {
+    const withPort = new URL(url.toString());
+    withPort.port = url.protocol === 'https:' ? '443' : '80';
+    candidates.push(withPort.toString());
+  }
+  for (const candidate of candidates) {
+    const expected = await computeTwilioSignature(authToken, candidate, params);
+    if (constantTimeEqual(expected, supplied)) return true;
+  }
+  return false;
+}
+
+async function readTwilioParams(request) {
+  const contentType = request.headers.get('Content-Type') || '';
+  if (!contentType.includes('application/x-www-form-urlencoded') && !contentType.includes('multipart/form-data')) {
+    return {};
+  }
+  const form = await request.formData();
+  const params = {};
+  for (const [key, value] of form.entries()) params[key] = typeof value === 'string' ? value : '';
+  return params;
+}
+
+function buildVoiceTwiml({ config, source, caller, trackingNumber, baseUrl }) {
+  const callerId = isE164(caller) ? caller : trackingNumber;
+  const whisperUrl = `${baseUrl}/api/calls/whisper?source=${encodeURIComponent(source)}`;
+  const dialActionUrl = `${baseUrl}/api/calls/dial?source=${encodeURIComponent(source)}`;
+  const recordingUrl = `${baseUrl}/api/calls/recording`;
+  return [
+    `<Say>${escapeXml(config.greeting)}</Say>`,
+    `<Dial callerId="${escapeXml(callerId)}" timeout="${config.dialTimeoutSeconds}" answerOnBridge="true"`,
+    ` record="record-from-answer-dual" recordingStatusCallback="${escapeXml(recordingUrl)}" recordingStatusCallbackEvent="completed"`,
+    ` action="${escapeXml(dialActionUrl)}" method="POST">`,
+    `<Number url="${escapeXml(whisperUrl)}" method="POST">${escapeXml(config.forwardTo)}</Number>`,
+    `</Dial>`,
+  ].join('');
+}
+
+function buildWhisperTwiml(source) {
+  return `<Say>Unfuck Your Taxes lead from ${escapeXml(spokenCallSource(source))}. Connecting now.</Say>`;
+}
+
+async function upsertCallRow(env, call) {
+  await env.DB.prepare(`
+    INSERT INTO calls (
+      call_sid, tracking_number, source, caller, caller_name, caller_city, caller_state,
+      forwarded_to, status, payload_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(call_sid) DO UPDATE SET
+      status = excluded.status,
+      caller = COALESCE(excluded.caller, calls.caller),
+      caller_name = COALESCE(excluded.caller_name, calls.caller_name),
+      caller_city = COALESCE(excluded.caller_city, calls.caller_city),
+      caller_state = COALESCE(excluded.caller_state, calls.caller_state),
+      forwarded_to = COALESCE(excluded.forwarded_to, calls.forwarded_to),
+      payload_json = excluded.payload_json,
+      updated_at = datetime('now')
+  `).bind(
+    call.callSid,
+    call.trackingNumber,
+    call.source,
+    call.caller || null,
+    call.callerName || null,
+    call.callerCity || null,
+    call.callerState || null,
+    call.forwardedTo || null,
+    call.status || 'initiated',
+    JSON.stringify(call.payload || {})
+  ).run();
+}
+
+function callerDisplayName(params) {
+  const cnam = String(params.CallerName || '').trim();
+  if (cnam && !/^(unknown|anonymous|unavailable)$/i.test(cnam)) return cnam;
+  const digits = phoneDigits(params.From);
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `Phone caller (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return digits ? `Phone caller ${params.From}` : 'Phone caller (number withheld)';
+}
+
+// Match the caller to an existing UFYT lead by phone number, or create a new
+// phone lead so the call has a home in the Lead Desk and the shared inbox.
+async function linkCallToLead(env, { callSid, caller, callerName, source, callerCity, callerState }) {
+  const digits = phoneDigits(caller);
+  if (digits.length < 10) return null;
+  const last10 = digits.slice(-10);
+
+  const existing = await env.DB.prepare(`
+    SELECT id FROM leads
+    WHERE (source = 'taxes' OR brand IN ('unfuckyourtaxes', 'ufyt'))
+      AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '-', ''), ' ', ''), '(', ''), ')', ''), '.', ''), '+', '') LIKE ?
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).bind(`%${last10}`).first();
+
+  let leadId;
+  let created = false;
+  if (existing) {
+    leadId = existing.id;
+  } else {
+    const name = callerName || `Phone caller ${caller}`;
+    const insert = await env.DB.prepare(`
+      INSERT INTO leads (
+        source, name, email, phone, problem, brand, surface, payload_json
+      ) VALUES ('taxes', ?, ?, ?, ?, 'unfuckyourtaxes', ?, ?)
+    `).bind(
+      name,
+      `phone-${digits}@calls.unfuckyourtaxes.com`,
+      caller,
+      `Inbound phone call to the ${source} tracking number`,
+      `phone:${source}`,
+      JSON.stringify({ call_sid: callSid, source, caller_city: callerCity || null, caller_state: callerState || null })
+    ).run();
+    leadId = insert.meta.last_row_id;
+    created = true;
+  }
+
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE calls SET lead_id = ?, lead_created = ?, updated_at = datetime('now') WHERE call_sid = ?`)
+      .bind(leadId, created ? 1 : 0, callSid),
+    env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'call_received', ?)`)
+      .bind(leadId, `Inbound call via ${source} tracking number (${callSid})`),
+  ]);
+
+  return { leadId, created };
+}
+
+async function handleCallVoice(request, env, params, config) {
+  const trackingNumber = String(params.To || '');
+  const source = config.trackingNumbers.get(trackingNumber);
+  const baseUrl = new URL(request.url).origin;
+  if (!source) {
+    console.error('Call to unmapped tracking number:', trackingNumber);
+    return twimlResponse(`<Say>This number is not in service.</Say><Hangup/>`);
+  }
+
+  await upsertCallRow(env, {
+    callSid: params.CallSid,
+    trackingNumber,
+    source,
+    caller: isE164(params.From) ? params.From : (params.From || null),
+    callerName: String(params.CallerName || '').trim() || null,
+    callerCity: params.FromCity || null,
+    callerState: params.FromState || null,
+    forwardedTo: config.forwardTo,
+    status: 'in-progress',
+    payload: params,
+  });
+
+  return twimlResponse(buildVoiceTwiml({ config, source, caller: params.From, trackingNumber, baseUrl }));
+}
+
+function handleCallWhisper(request) {
+  const source = new URL(request.url).searchParams.get('source') || '';
+  return twimlResponse(buildWhisperTwiml(source));
+}
+
+async function handleCallDialResult(request, env, params) {
+  const dialStatus = String(params.DialCallStatus || '').toLowerCase();
+  const answered = dialStatus === 'completed' ? 1 : 0;
+  await env.DB.prepare(`
+    UPDATE calls SET dial_status = ?, answered = ?, updated_at = datetime('now') WHERE call_sid = ?
+  `).bind(dialStatus || null, answered, params.CallSid).run();
+
+  if (answered) return twimlResponse('<Hangup/>');
+  return twimlResponse(`<Say>${escapeXml(MISSED_CALL_MESSAGE)}</Say><Hangup/>`);
+}
+
+async function handleCallStatus(request, env, ctx, params, config) {
+  const callSid = params.CallSid;
+  const status = String(params.CallStatus || '').toLowerCase();
+  const trackingNumber = String(params.To || '');
+  const source = config.trackingNumbers.get(trackingNumber) || 'unknown';
+
+  // The status callback can arrive before or without the voice webhook row, so
+  // make sure a row exists before finalizing it.
+  await upsertCallRow(env, {
+    callSid,
+    trackingNumber,
+    source,
+    caller: isE164(params.From) ? params.From : (params.From || null),
+    callerName: String(params.CallerName || '').trim() || null,
+    callerCity: params.FromCity || null,
+    callerState: params.FromState || null,
+    forwardedTo: config.forwardTo,
+    status: status || 'completed',
+    payload: params,
+  });
+
+  const terminal = ['completed', 'busy', 'no-answer', 'failed', 'canceled'].includes(status);
+  if (!terminal) {
+    return new Response(JSON.stringify({ success: true, status }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  await env.DB.prepare(`
+    UPDATE calls
+    SET duration_seconds = ?, ended_at = datetime('now'), updated_at = datetime('now')
+    WHERE call_sid = ?
+  `).bind(parseInt(params.CallDuration) || 0, callSid).run();
+
+  const row = await env.DB.prepare(`SELECT * FROM calls WHERE call_sid = ?`).bind(callSid).first();
+  let link = null;
+  if (row && !row.lead_id) {
+    link = await linkCallToLead(env, {
+      callSid,
+      caller: row.caller,
+      callerName: row.caller_name,
+      source: row.source,
+      callerCity: row.caller_city,
+      callerState: row.caller_state,
+    }).catch(error => {
+      console.error('Call lead link error:', error.message);
+      return null;
+    });
+  }
+  const leadId = link ? link.leadId : (row ? row.lead_id : null);
+  const answered = row ? Number(row.answered) === 1 : false;
+
+  if (!answered) {
+    ctx.waitUntil(
+      sendUfytMissedCallAlerts(env, { ...row, lead_id: leadId })
+        .then(() => env.DB.prepare(`UPDATE calls SET alerted_at = datetime('now') WHERE call_sid = ?`).bind(callSid).run())
+        .catch(error => console.error('Missed call alert error:', error.message))
+    );
+  }
+
+  return new Response(JSON.stringify({ success: true, status, leadId, answered }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+async function handleCallRecording(request, env, params) {
+  await env.DB.prepare(`
+    UPDATE calls
+    SET recording_sid = ?, recording_url = ?, recording_duration_seconds = ?, updated_at = datetime('now')
+    WHERE call_sid = ?
+  `).bind(
+    params.RecordingSid || null,
+    params.RecordingUrl || null,
+    parseInt(params.RecordingDuration) || null,
+    params.CallSid
+  ).run();
+  return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+function describeCallOutcome(call) {
+  if (Number(call.answered) === 1) return 'answered';
+  if (call.dial_status === 'busy' || call.status === 'busy') return 'busy';
+  if (call.dial_status === 'no-answer' || call.status === 'no-answer') return 'missed (no answer)';
+  if (call.dial_status === 'failed' || call.status === 'failed') return 'failed';
+  if (call.status === 'canceled') return 'caller hung up';
+  return 'missed';
+}
+
+function buildMissedCallEmail(call) {
+  const outcome = describeCallOutcome(call);
+  const caller = call.caller || 'Number withheld';
+  const location = [call.caller_city, call.caller_state].filter(Boolean).join(', ');
+  return `
+    <h2>Missed UFYT call</h2>
+    <p><strong>Caller:</strong> <a href="tel:${escapeHtml(caller)}">${escapeHtml(caller)}</a>${call.caller_name ? ` (${escapeHtml(call.caller_name)})` : ''}</p>
+    ${location ? `<p><strong>Location:</strong> ${escapeHtml(location)}</p>` : ''}
+    <p><strong>Source:</strong> ${escapeHtml(call.source)} tracking number</p>
+    <p><strong>Outcome:</strong> ${escapeHtml(outcome)}</p>
+    <p><strong>Time:</strong> ${escapeHtml(call.started_at || '')} UTC</p>
+    ${call.lead_id ? `<p><strong>Lead ID:</strong> ${escapeHtml(call.lead_id)}</p>` : ''}
+    <p><a href="https://ufyt-leads-dash.pages.dev">Open the UFYT Lead Desk to call back</a></p>
+  `;
+}
+
+function buildMissedCallSmsBody(call) {
+  return `Missed UFYT call (${call.source}): ${call.caller || 'number withheld'}\nLead #${call.lead_id || '?'}: https://ufyt-leads-dash.pages.dev`;
+}
+
+async function sendUfytMissedCallAlerts(env, call) {
+  const tasks = [];
+  const emails = String(env.UFYT_NOTIFICATION_EMAILS || '').split(',').map(email => email.trim()).filter(Boolean);
+  if (env.UFYT_RESEND_API_KEY && emails.length > 0) {
+    tasks.push(
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.UFYT_RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Unfuck Your Taxes <leads@unfuckyourtaxes.com>',
+          to: emails,
+          subject: `Missed UFYT call: ${call.caller || 'number withheld'} (${call.source})`,
+          html: buildMissedCallEmail(call),
+        }),
+      }).then(response => {
+        if (!response.ok) throw new Error(`Resend returned HTTP ${response.status}`);
+      })
+    );
+  }
+
+  const smsRecipients = getUfytSmsAlertRecipients(env.UFYT_SMS_NOTIFICATION_NUMBERS);
+  const smsConfigured = env.UFYT_TWILIO_ACCOUNT_SID
+    && env.UFYT_TWILIO_API_KEY_SID
+    && env.UFYT_TWILIO_API_KEY_SECRET
+    && env.UFYT_TWILIO_MESSAGING_SERVICE_SID
+    && smsRecipients.length > 0;
+  if (smsConfigured) {
+    tasks.push(sendUfytSms({
+      accountSid: env.UFYT_TWILIO_ACCOUNT_SID,
+      apiKeySid: env.UFYT_TWILIO_API_KEY_SID,
+      apiKeySecret: env.UFYT_TWILIO_API_KEY_SECRET,
+      messagingServiceSid: env.UFYT_TWILIO_MESSAGING_SERVICE_SID,
+      recipients: smsRecipients,
+      body: buildMissedCallSmsBody(call),
+    }));
+  }
+
+  if (tasks.length === 0) {
+    console.warn('Missed call alert skipped: no alert channel configured');
+    return;
+  }
+  await Promise.all(tasks);
+}
+
+async function handleCallRoute(request, env, ctx, path) {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+  const config = getUfytCallConfig(env);
+  if (!config) {
+    return new Response(JSON.stringify({ success: false, error: 'Call tracking is not configured' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const params = await readTwilioParams(request);
+  if (!(await verifyTwilioSignature(request, config.authToken, params))) {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid Twilio signature' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  if (!params.CallSid && path !== '/api/calls/whisper') {
+    return new Response(JSON.stringify({ success: false, error: 'CallSid is required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    switch (path) {
+      case '/api/calls/voice':
+        return await handleCallVoice(request, env, params, config);
+      case '/api/calls/whisper':
+        return handleCallWhisper(request);
+      case '/api/calls/dial':
+        return await handleCallDialResult(request, env, params);
+      case '/api/calls/status':
+        return await handleCallStatus(request, env, ctx, params, config);
+      case '/api/calls/recording':
+        return await handleCallRecording(request, env, params);
+      default:
+        return new Response('Not found', { status: 404 });
+    }
+  } catch (error) {
+    console.error('Call webhook error:', error);
+    // Keep the caller connected to something useful even if logging fails.
+    if (path === '/api/calls/voice') {
+      const source = config.trackingNumbers.get(String(params.To || '')) || 'unknown';
+      return twimlResponse(buildVoiceTwiml({
+        config,
+        source,
+        caller: params.From,
+        trackingNumber: String(params.To || ''),
+        baseUrl: new URL(request.url).origin,
+      }));
+    }
+    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+async function handleGetCalls(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 100, 500);
+    const offset = parseInt(url.searchParams.get('offset')) || 0;
+    const source = url.searchParams.get('source');
+    const leadId = parseInt(url.searchParams.get('lead_id'));
+    const missedOnly = url.searchParams.get('missed') === '1';
+
+    let query = `
+      SELECT c.id, c.call_sid, c.source, c.tracking_number, c.caller, c.caller_name, c.caller_city, c.caller_state,
+             c.status, c.dial_status, c.answered, c.duration_seconds, c.recording_url, c.recording_duration_seconds,
+             c.lead_id, c.lead_created, c.alerted_at, c.started_at, c.ended_at, l.name AS lead_name, l.status AS lead_status
+      FROM calls c
+      LEFT JOIN leads l ON l.id = c.lead_id
+      WHERE 1=1`;
+    const params = [];
+    if (source) { query += ' AND c.source = ?'; params.push(source); }
+    if (leadId) { query += ' AND c.lead_id = ?'; params.push(leadId); }
+    if (missedOnly) { query += ' AND c.answered = 0'; }
+    query += ' ORDER BY c.started_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const result = await env.DB.prepare(query).bind(...params).all();
+    return new Response(JSON.stringify({ success: true, calls: result.results, count: result.results.length }), {
+      status: 200,
+      headers: corsHeaders,
+    });
+  } catch (error) {
+    console.error('Get calls error:', error);
+    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), { status: 500, headers: corsHeaders });
+  }
+}
+
+async function getCallStats(env) {
+  try {
+    const [total, today, missedToday, bySource] = await Promise.all([
+      env.DB.prepare('SELECT COUNT(*) AS count FROM calls').first(),
+      env.DB.prepare("SELECT COUNT(*) AS count FROM calls WHERE DATE(started_at) = DATE('now')").first(),
+      env.DB.prepare("SELECT COUNT(*) AS count FROM calls WHERE DATE(started_at) = DATE('now') AND answered = 0 AND ended_at IS NOT NULL").first(),
+      env.DB.prepare('SELECT source, COUNT(*) AS count, SUM(answered) AS answered FROM calls GROUP BY source').all(),
+    ]);
+    return {
+      total: total.count,
+      today: today.count,
+      missed_today: missedToday.count,
+      by_source: bySource.results,
+    };
+  } catch (error) {
+    // The calls table may not exist yet on an environment that has not run 0003.
+    console.error('Call stats error:', error.message);
+    return null;
+  }
 }
 
 function escapeHtml(value) {
@@ -841,4 +1414,13 @@ async function handleUpdateLead(request, env, corsHeaders) {
   }
 }
 
-export { buildUfytSmsAlertBody, getUfytSmsAlertRecipients, sendUfytSmsLeadAlerts };
+export {
+  buildUfytSmsAlertBody,
+  getUfytSmsAlertRecipients,
+  sendUfytSmsLeadAlerts,
+  computeTwilioSignature,
+  parseTrackingNumberMap,
+  buildVoiceTwiml,
+  buildWhisperTwiml,
+  getUfytCallConfig,
+};
