@@ -55,7 +55,7 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 - [x] Add SMS consent capture to the UFYT quiz (unchecked checkbox with TCPA disclosure) and store consent text version, timestamp, and page on the lead
 - [x] Add the automated SMS follow-up sequence (immediate, 24h, 72h) driven by a Worker cron trigger and a queue table, sent only to consented, non-opted-out leads, with delivery status callbacks
 - [x] Handle STOP/UNSUBSCRIBE replies by marking the lead opted out and cancelling pending sequence steps
-- [ ] Draft the 10DLC marketing campaign registration content (use case, opt-in description, sample messages, consent language) in the vault for Cameron to submit
+- [x] Draft the 10DLC marketing campaign registration content (use case, opt-in description, sample messages, consent language) in the vault for Cameron to submit
 
 ### Phase 3: Provisioning and go-live
 - [ ] Cameron confirms the Forti.fi/UFYT Twilio subaccount and buys two local numbers, one for email follow-up and one for Meta ads
