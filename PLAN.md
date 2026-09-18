@@ -46,7 +46,7 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 - [x] Send the internal UFYT email alert (and SMS alert when Twilio SMS is active) for missed or unanswered calls with a Lead Desk link
 - [x] Add /api/integrations/calls to Communications OS that appends a call record to the lead's conversation, creating the contact and conversation for unknown callers, with vitest coverage
 - [x] Mirror each completed call from the Worker to Communications OS after the D1 write
-- [ ] Show calls (source, caller, duration, status, recording link) in the UFYT Lead Desk
+- [x] Show calls (source, caller, duration, status, recording link) in the UFYT Lead Desk
 
 ### Phase 3: Provisioning and go-live
 - [ ] Cameron confirms the Forti.fi/UFYT Twilio subaccount and buys two local numbers, one for email follow-up and one for Meta ads
@@ -64,6 +64,10 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 - 2026-09-18 — Voice-only numbers first — A2P 10DLC registration only gates SMS, so the open Forti.fi EIN item does not block calls.
 - 2026-09-18 — Play a recording disclosure before forwarding — California is a two-party consent state.
 - 2026-09-18 — Tracking-number to source map and forward-to number live in Worker secrets, never in the repo or vault.
+
+- 2026-09-18 — Lead Desk changes live on branch `ufyt-leaddesk-calls` in c-mathis/unfuckyourtaxes (lead-dashboard/src/index.js); Communications OS changes on branch `ufyt-call-events` in c-mathis/communications-os — the plan tracks all three repos from this one file.
+- 2026-09-18 — Whisper is announce-only (no press-1 screening) — keeps pickup friction at zero; the trade-off is that a carrier voicemail can count as answered. Revisit if missed-call alerts look wrong in the first week.
+- 2026-09-18 — Unknown callers become a lead with a synthetic `phone-<digits>@calls.unfuckyourtaxes.com` email — the leads table and the inbox contact model both key on email; the address is never mailed.
 
 ## Definition of Done
 - [ ] A call to either tracking number rings the sales phone with a whisper naming the source and is recorded after the disclosure
