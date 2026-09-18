@@ -15,3 +15,7 @@ database_id = "20ec98a7-8f00-48ed-938a-bc1c4946bf40"
 [[routes]]
 pattern = "leads.unfuckyourweb.com/*"
 zone_name = "unfuckyourweb.com"
+
+# SMS follow-up sequence: send due steps every five minutes.
+[triggers]
+crons = ["*/5 * * * *"]

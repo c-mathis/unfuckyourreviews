@@ -48,9 +48,19 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 - [x] Mirror each completed call from the Worker to Communications OS after the D1 write
 - [x] Show calls (source, caller, duration, status, recording link) in the UFYT Lead Desk
 
+### Phase 2b: Inbound SMS on the tracking numbers
+- [x] Add migration 0004_sms.sql and the /api/sms/inbound webhook that verifies the Twilio signature, stores texts sent to the tracking numbers, links the sender to a lead, and alerts sales
+- [x] Add /api/integrations/sms to Communications OS that appends inbound texts to the lead's conversation, with vitest coverage, and mirror each stored text from the Worker
+- [x] Add scripts/provision-twilio.mjs that buys the two local numbers, sets their voice, status, and SMS webhooks, creates the UFYT Messaging Service, and prints the Worker secret values
+- [x] Add SMS consent capture to the UFYT quiz (unchecked checkbox with TCPA disclosure) and store consent text version, timestamp, and page on the lead
+- [x] Add the automated SMS follow-up sequence (immediate, 24h, 72h) driven by a Worker cron trigger and a queue table, sent only to consented, non-opted-out leads, with delivery status callbacks
+- [x] Handle STOP/UNSUBSCRIBE replies by marking the lead opted out and cancelling pending sequence steps
+- [ ] Draft the 10DLC marketing campaign registration content (use case, opt-in description, sample messages, consent language) in the vault for Cameron to submit
+
 ### Phase 3: Provisioning and go-live
 - [ ] Cameron confirms the Forti.fi/UFYT Twilio subaccount and buys two local numbers, one for email follow-up and one for Meta ads
-- [ ] Cameron adds the Twilio auth token, forward-to number, and tracking-number map as Worker secrets and points each number's voice webhook and status callback at the Worker
+- [ ] Run the provisioning script against the Forti.fi/UFYT subaccount and store the auth token, forward-to number, tracking-number map, API key, and Messaging Service SID as Worker secrets
+- [ ] Register the Forti.fi A2P 10DLC Brand and low-volume mixed Campaign and attach the Messaging Service so outbound SMS (alerts, auto-replies, follow-ups) is deliverable
 - [ ] Deploy the Worker and apply the calls migration to the production D1 database
 - [ ] Place a live test call on each number and verify forward, whisper, recording, Lead Desk row, inbox entry, and missed-call alert
 - [ ] Put the numbers into the follow-up email template and Meta ad copy and record the outcome in the vault
@@ -58,6 +68,15 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 ## Change Log
 <!-- One line per scope change, BEFORE touching the checklist. For "changed", quote both old and new text. -->
 <!-- - YYYY-MM-DD | added|removed|changed | "exact step text" | reason | approved: who -->
+- 2026-09-18 | added | "Add migration 0004_sms.sql and the /api/sms/inbound webhook that verifies the Twilio signature, stores texts sent to the tracking numbers, links the sender to a lead, and alerts sales" | Cameron: "we're going to need SMS" | approved: Cameron
+- 2026-09-18 | added | "Add /api/integrations/sms to Communications OS that appends inbound texts to the lead's conversation, with vitest coverage, and mirror each stored text from the Worker" | Cameron: "we're going to need SMS" | approved: Cameron
+- 2026-09-18 | added | "Add scripts/provision-twilio.mjs that buys the two local numbers, sets their voice, status, and SMS webhooks, creates the UFYT Messaging Service, and prints the Worker secret values" | Cameron is in Twilio and asked to begin provisioning; the API path avoids manual console work | approved: Cameron
+- 2026-09-18 | added | "Register the Forti.fi A2P 10DLC Brand and low-volume mixed Campaign and attach the Messaging Service so outbound SMS (alerts, auto-replies, follow-ups) is deliverable" | Outbound US SMS is blocked without registration | approved: Cameron
+- 2026-09-18 | added | "Add SMS consent capture to the UFYT quiz (unchecked checkbox with TCPA disclosure) and store consent text version, timestamp, and page on the lead" | Cameron: "The SMS is for sms marketing. Sending texts automated to leads that submit" | approved: Cameron
+- 2026-09-18 | added | "Add the automated SMS follow-up sequence (immediate, 24h, 72h) driven by a Worker cron trigger and a queue table, sent only to consented, non-opted-out leads, with delivery status callbacks" | Cameron: "The SMS is for sms marketing" | approved: Cameron
+- 2026-09-18 | added | "Handle STOP/UNSUBSCRIBE replies by marking the lead opted out and cancelling pending sequence steps" | required for marketing SMS compliance | approved: Cameron
+- 2026-09-18 | added | "Draft the 10DLC marketing campaign registration content (use case, opt-in description, sample messages, consent language) in the vault for Cameron to submit" | required before outbound marketing SMS can deliver | approved: Cameron
+- 2026-09-18 | changed | "Cameron adds the Twilio auth token, forward-to number, and tracking-number map as Worker secrets and points each number's voice webhook and status callback at the Worker" | now "Run the provisioning script against the Forti.fi/UFYT subaccount and store the auth token, forward-to number, tracking-number map, API key, and Messaging Service SID as Worker secrets" because provisioning is scripted | approved: Cameron
 
 ## Decisions
 - 2026-09-18 — Build call tracking on the Forti.fi/UFYT Twilio subaccount instead of CallRail — two static numbers need no dynamic number insertion, and calls belong beside quiz leads in the existing Lead Desk and Communications OS.

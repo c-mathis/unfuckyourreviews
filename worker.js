@@ -78,6 +78,12 @@ async function checkRateLimit(ip, env) {
 }
 
 export default {
+  // Cron: send due SMS follow-up steps.
+  async scheduled(event, env, ctx) {
+    const outcome = await processUfytSmsSequence(env);
+    console.log('SMS sequence run:', JSON.stringify(outcome));
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -126,6 +132,26 @@ export default {
         return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
       }
       return handleGetCalls(request, env, corsHeaders);
+    }
+
+    if (path === '/api/sms' && request.method === 'GET') {
+      if (!authenticate(request, env)) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      return handleGetSms(request, env, corsHeaders);
+    }
+
+    if (path === '/api/sms/run-sequence' && request.method === 'POST') {
+      if (!authenticate(request, env)) {
+        return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      const outcome = await processUfytSmsSequence(env);
+      return new Response(JSON.stringify({ success: true, ...outcome }), { status: 200, headers: corsHeaders });
+    }
+
+    // Twilio messaging webhooks for the UFYT tracking numbers (signature-verified).
+    if (path.startsWith('/api/sms/')) {
+      return handleSmsRoute(request, env, ctx, path);
     }
 
     // Twilio voice webhooks for the UFYT tracking numbers (signature-verified).
@@ -216,6 +242,18 @@ export default {
       ).run();
 
       console.log('Lead saved:', result.meta.last_row_id);
+
+      // SMS marketing: record consent and queue the follow-up sequence. Step 0
+      // goes out right away when sending is configured; the cron covers the rest.
+      if (source === 'taxes') {
+        ctx.waitUntil(
+          enqueueUfytSmsSequence(env, { leadId: result.meta.last_row_id, data, landingPage: data.landing_page || referer })
+            .then(async outcome => {
+              if (outcome.queued && getUfytSmsSendConfig(env)) await processUfytSmsSequence(env, { limit: 5 });
+            })
+            .catch(error => console.error('UFYT SMS sequence enqueue error:', error.message))
+        );
+      }
 
       // Mirror UFYT leads into the Fortifi communications backend. This runs after
       // the local D1 write, is idempotent by lead ID, and never blocks the
@@ -945,39 +983,16 @@ function callerDisplayName(params) {
 // Match the caller to an existing UFYT lead by phone number, or create a new
 // phone lead so the call has a home in the Lead Desk and the shared inbox.
 async function linkCallToLead(env, { callSid, caller, callerName, source, callerCity, callerState }) {
-  const digits = phoneDigits(caller);
-  if (digits.length < 10) return null;
-  const last10 = digits.slice(-10);
-
-  const existing = await env.DB.prepare(`
-    SELECT id FROM leads
-    WHERE (source = 'taxes' OR brand IN ('unfuckyourtaxes', 'ufyt'))
-      AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '-', ''), ' ', ''), '(', ''), ')', ''), '.', ''), '+', '') LIKE ?
-    ORDER BY created_at DESC
-    LIMIT 1
-  `).bind(`%${last10}`).first();
-
-  let leadId;
-  let created = false;
-  if (existing) {
-    leadId = existing.id;
-  } else {
-    const name = callerName || `Phone caller ${caller}`;
-    const insert = await env.DB.prepare(`
-      INSERT INTO leads (
-        source, name, email, phone, problem, brand, surface, payload_json
-      ) VALUES ('taxes', ?, ?, ?, ?, 'unfuckyourtaxes', ?, ?)
-    `).bind(
-      name,
-      `phone-${digits}@calls.unfuckyourtaxes.com`,
-      caller,
-      `Inbound phone call to the ${source} tracking number`,
-      `phone:${source}`,
-      JSON.stringify({ call_sid: callSid, source, caller_city: callerCity || null, caller_state: callerState || null })
-    ).run();
-    leadId = insert.meta.last_row_id;
-    created = true;
-  }
+  const link = await findOrCreateUfytLeadByPhone(env, {
+    phone: caller,
+    name: callerName,
+    source,
+    surface: `phone:${source}`,
+    problem: `Inbound phone call to the ${source} tracking number`,
+    payload: { call_sid: callSid, source, caller_city: callerCity || null, caller_state: callerState || null },
+  });
+  if (!link) return null;
+  const { leadId, created } = link;
 
   await env.DB.batch([
     env.DB.prepare(`UPDATE calls SET lead_id = ?, lead_created = ?, updated_at = datetime('now') WHERE call_sid = ?`)
@@ -1371,6 +1386,447 @@ async function getCallStats(env) {
   }
 }
 
+// ============================================
+// SMS MARKETING (Twilio Messaging Service)
+// ============================================
+//
+// Consented UFYT leads get a short follow-up sequence; replies and texts to
+// the tracking numbers are logged, linked to the lead, mirrored to the shared
+// inbox, and alerted. STOP keywords opt the lead out and cancel the sequence.
+// Sending needs the four UFYT_TWILIO_* secrets plus a registered 10DLC
+// campaign; inbound only needs UFYT_TWILIO_AUTH_TOKEN for signatures.
+
+const SMS_CONSENT_VERSION = 'ufyt-sms-2026-09-18';
+const SMS_OPT_OUT_WORDS = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']);
+const SMS_OPT_IN_WORDS = new Set(['START', 'UNSTOP', 'YES']);
+
+// Steps: offset in hours from the lead submission. Bodies identify the brand,
+// stay under one segment where possible, and carry the STOP line.
+const UFYT_SMS_SEQUENCE = [
+  {
+    step: 0,
+    offsetHours: 0,
+    body: ({ first }) => `Unf*ck Your Taxes: got your submission${first ? `, ${first}` : ''}. A real person will call you within one business day. Want to skip the wait? Reply with a good time to talk. Reply STOP to opt out.`,
+  },
+  {
+    step: 1,
+    offsetHours: 24,
+    body: ({ first }) => `${first ? `${first}, it's` : "It's"} Unf*ck Your Taxes. Still want this sorted? Reply with a time that works and we'll call you then. Reply STOP to opt out.`,
+  },
+  {
+    step: 2,
+    offsetHours: 72,
+    body: ({ first }) => `Last nudge from Unf*ck Your Taxes${first ? `, ${first}` : ''}. If the IRS problem is still sitting there, reply YES and we'll call you today. Reply STOP to opt out.`,
+  },
+];
+
+function toE164(value) {
+  const digits = phoneDigits(value);
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (isE164(value)) return String(value);
+  return null;
+}
+
+function firstNameOf(lead) {
+  const payload = (() => { try { return JSON.parse(lead.payload_json || '{}'); } catch { return {}; } })();
+  const first = String(payload.first_name || lead.first_name || String(lead.name || '').trim().split(/\s+/)[0] || '').trim();
+  return /^[A-Za-z][A-Za-z'-]{0,29}$/.test(first) ? first : '';
+}
+
+function getUfytSmsSendConfig(env) {
+  if (!env.UFYT_TWILIO_ACCOUNT_SID || !env.UFYT_TWILIO_API_KEY_SID || !env.UFYT_TWILIO_API_KEY_SECRET || !env.UFYT_TWILIO_MESSAGING_SERVICE_SID) {
+    return null;
+  }
+  return {
+    accountSid: env.UFYT_TWILIO_ACCOUNT_SID,
+    apiKeySid: env.UFYT_TWILIO_API_KEY_SID,
+    apiKeySecret: env.UFYT_TWILIO_API_KEY_SECRET,
+    messagingServiceSid: env.UFYT_TWILIO_MESSAGING_SERVICE_SID,
+    statusCallback: env.UFYT_SMS_STATUS_CALLBACK_URL || 'https://leads.unfuckyourweb.com/api/sms/status',
+  };
+}
+
+async function sendUfytSmsMessage(config, { to, body }) {
+  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(config.accountSid)}/Messages.json`;
+  const form = new URLSearchParams({ To: to, MessagingServiceSid: config.messagingServiceSid, Body: body });
+  if (config.statusCallback) form.set('StatusCallback', config.statusCallback);
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`${config.apiKeySid}:${config.apiKeySecret}`)}`,
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+    },
+    body: form.toString(),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Twilio message failed (${response.status}, code ${result.code || 'unknown'})`);
+  }
+  return { sid: result.sid, status: result.status, from: result.from || null };
+}
+
+// Record consent from the form payload and queue the sequence. Called after
+// the lead row exists; never throws into the public form response.
+async function enqueueUfytSmsSequence(env, { leadId, data, landingPage }) {
+  const consented = data.sms_consent === true || data.sms_consent === 1 || /^(1|true|yes|on)$/i.test(String(data.sms_consent || ''));
+  const phone = toE164(data.phone);
+  if (!consented || !phone) return { queued: false, reason: consented ? 'phone' : 'consent' };
+
+  await env.DB.prepare(`
+    UPDATE leads
+    SET phone = ?, sms_consent = 1, sms_consent_text = ?, sms_consent_at = datetime('now'), sms_consent_page = ?
+    WHERE id = ?
+  `).bind(phone, String(data.sms_consent_text || SMS_CONSENT_VERSION).slice(0, 1000), String(landingPage || '').slice(0, 500) || null, leadId).run();
+
+  // A phone that already opted out stays out, regardless of the new checkbox.
+  const optedOut = await env.DB.prepare(`
+    SELECT 1 FROM leads WHERE sms_opt_out = 1 AND phone = ? LIMIT 1
+  `).bind(phone).first();
+  if (optedOut) {
+    await env.DB.prepare(`UPDATE leads SET sms_opt_out = 1, sms_opt_out_at = COALESCE(sms_opt_out_at, datetime('now')) WHERE id = ?`).bind(leadId).run();
+    return { queued: false, reason: 'opted-out' };
+  }
+
+  await env.DB.batch(UFYT_SMS_SEQUENCE.map(step =>
+    env.DB.prepare(`
+      INSERT OR IGNORE INTO sms_sequence (lead_id, step, send_at)
+      VALUES (?, ?, datetime('now', ?))
+    `).bind(leadId, step.step, `+${step.offsetHours} hours`)
+  ));
+  return { queued: true, phone };
+}
+
+async function processUfytSmsSequence(env, { limit = 50 } = {}) {
+  const config = getUfytSmsSendConfig(env);
+  if (!config) return { processed: 0, skipped: 'not-configured' };
+
+  const due = await env.DB.prepare(`
+    SELECT s.id, s.lead_id, s.step, s.attempts, l.phone, l.name, l.payload_json, l.status AS lead_status,
+           l.sms_consent, l.sms_opt_out
+    FROM sms_sequence s JOIN leads l ON l.id = s.lead_id
+    WHERE s.status = 'pending' AND s.send_at <= datetime('now')
+    ORDER BY s.send_at
+    LIMIT ?
+  `).bind(limit).all();
+
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+  for (const row of due.results) {
+    const outcome = await sendUfytSequenceStep(env, config, row).catch(error => ({ status: 'failed', error: error.message }));
+    if (outcome.status === 'sent') sent += 1;
+    else if (outcome.status === 'failed') failed += 1;
+    else skipped += 1;
+  }
+  return { processed: due.results.length, sent, skipped, failed };
+}
+
+async function sendUfytSequenceStep(env, config, row) {
+  const template = UFYT_SMS_SEQUENCE.find(step => step.step === Number(row.step));
+  const phone = toE164(row.phone);
+
+  // Skip when the person opted out, revoked consent, replied, or sales already
+  // moved the lead past "new". A human owns the thread from that point.
+  let skipReason = null;
+  if (!template) skipReason = 'unknown-step';
+  else if (!phone) skipReason = 'no-phone';
+  else if (Number(row.sms_opt_out) === 1) skipReason = 'opted-out';
+  else if (Number(row.sms_consent) !== 1) skipReason = 'no-consent';
+  else if (Number(row.step) > 0 && row.lead_status && row.lead_status !== 'new') skipReason = `lead-${row.lead_status}`;
+  else if (Number(row.step) > 0) {
+    const replied = await env.DB.prepare(`
+      SELECT 1 FROM sms_messages WHERE lead_id = ? AND direction = 'inbound' LIMIT 1
+    `).bind(row.lead_id).first();
+    if (replied) skipReason = 'replied';
+  }
+  if (skipReason) {
+    await env.DB.prepare(`UPDATE sms_sequence SET status = 'skipped', last_error = ?, updated_at = datetime('now') WHERE id = ?`).bind(skipReason, row.id).run();
+    return { status: 'skipped', reason: skipReason };
+  }
+
+  const body = template.body({ first: firstNameOf(row) });
+  try {
+    const result = await sendUfytSmsMessage(config, { to: phone, body });
+    await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO sms_messages (message_sid, direction, tracking_number, source, counterpart, body, status, lead_id, sequence_step)
+        VALUES (?, 'outbound', ?, 'sequence', ?, ?, ?, ?, ?)
+        ON CONFLICT(message_sid) DO NOTHING
+      `).bind(result.sid, result.from, phone, body, result.status || 'queued', row.lead_id, row.step),
+      env.DB.prepare(`UPDATE sms_sequence SET status = 'sent', message_sid = ?, attempts = attempts + 1, updated_at = datetime('now') WHERE id = ?`).bind(result.sid, row.id),
+      env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'sms_sent', ?)`).bind(row.lead_id, `Sequence step ${row.step} sent (${result.sid})`),
+    ]);
+    return { status: 'sent', sid: result.sid };
+  } catch (error) {
+    const attempts = Number(row.attempts) + 1;
+    const finalStatus = attempts >= 3 ? 'failed' : 'pending';
+    await env.DB.prepare(`
+      UPDATE sms_sequence SET status = ?, attempts = ?, last_error = ?, send_at = datetime('now', '+15 minutes'), updated_at = datetime('now') WHERE id = ?
+    `).bind(finalStatus, attempts, String(error.message).slice(0, 500), row.id).run();
+    return { status: 'failed', error: error.message };
+  }
+}
+
+async function cancelUfytSmsSequence(env, leadId, reason) {
+  await env.DB.prepare(`
+    UPDATE sms_sequence SET status = 'cancelled', last_error = ?, updated_at = datetime('now')
+    WHERE lead_id = ? AND status = 'pending'
+  `).bind(reason, leadId).run();
+}
+
+async function findOrCreateUfytLeadByPhone(env, { phone, name, source, surface, problem, payload }) {
+  const digits = phoneDigits(phone);
+  if (digits.length < 10) return null;
+  const last10 = digits.slice(-10);
+  const existing = await env.DB.prepare(`
+    SELECT id FROM leads
+    WHERE (source = 'taxes' OR brand IN ('unfuckyourtaxes', 'ufyt'))
+      AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '-', ''), ' ', ''), '(', ''), ')', ''), '.', ''), '+', '') LIKE ?
+    ORDER BY created_at DESC
+    LIMIT 1
+  `).bind(`%${last10}`).first();
+  if (existing) return { leadId: existing.id, created: false };
+
+  const insert = await env.DB.prepare(`
+    INSERT INTO leads (source, name, email, phone, problem, brand, surface, payload_json)
+    VALUES ('taxes', ?, ?, ?, ?, 'unfuckyourtaxes', ?, ?)
+  `).bind(
+    name || `Phone contact ${phone}`,
+    `phone-${digits}@calls.unfuckyourtaxes.com`,
+    toE164(phone) || phone,
+    problem || null,
+    surface,
+    JSON.stringify(payload || {})
+  ).run();
+  return { leadId: insert.meta.last_row_id, created: true };
+}
+
+function classifySmsKeyword(body) {
+  const word = String(body || '').trim().toUpperCase().replace(/[^A-Z]/g, '');
+  if (SMS_OPT_OUT_WORDS.has(word)) return 'opt-out';
+  if (SMS_OPT_IN_WORDS.has(word)) return 'opt-in';
+  return null;
+}
+
+async function handleSmsInbound(request, env, ctx, params, config) {
+  const messageSid = params.MessageSid || params.SmsMessageSid;
+  const from = toE164(params.From) || String(params.From || '');
+  const to = String(params.To || '');
+  const source = config.trackingNumbers.get(to) || 'unknown';
+  const body = String(params.Body || '').trim();
+  const keyword = classifySmsKeyword(body);
+  const numMedia = parseInt(params.NumMedia) || 0;
+
+  const link = await findOrCreateUfytLeadByPhone(env, {
+    phone: from,
+    name: null,
+    source,
+    surface: `sms:${source}`,
+    problem: `Inbound text to the ${source} tracking number`,
+    payload: { message_sid: messageSid, source, from_city: params.FromCity || null, from_state: params.FromState || null },
+  });
+  const leadId = link ? link.leadId : null;
+
+  await env.DB.prepare(`
+    INSERT INTO sms_messages (message_sid, direction, tracking_number, source, counterpart, body, num_media, status, lead_id, opt_out, payload_json)
+    VALUES (?, 'inbound', ?, ?, ?, ?, ?, 'received', ?, ?, ?)
+    ON CONFLICT(message_sid) DO UPDATE SET lead_id = COALESCE(excluded.lead_id, sms_messages.lead_id), updated_at = datetime('now')
+  `).bind(messageSid, to, source, from, body, numMedia, leadId, keyword === 'opt-out' ? 1 : 0, JSON.stringify(params)).run();
+
+  if (leadId) {
+    if (keyword === 'opt-out') {
+      await env.DB.batch([
+        env.DB.prepare(`UPDATE leads SET sms_opt_out = 1, sms_opt_out_at = datetime('now') WHERE id = ?`).bind(leadId),
+        env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'sms_opt_out', ?)`).bind(leadId, `Replied ${body.toUpperCase()} (${messageSid})`),
+      ]);
+      await cancelUfytSmsSequence(env, leadId, 'opt-out');
+    } else if (keyword === 'opt-in') {
+      await env.DB.batch([
+        env.DB.prepare(`UPDATE leads SET sms_opt_out = 0, sms_opt_out_at = NULL WHERE id = ?`).bind(leadId),
+        env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'sms_received', ?)`).bind(leadId, `Replied ${body.toUpperCase()} (${messageSid})`),
+      ]);
+    } else {
+      await env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'sms_received', ?)`).bind(leadId, `Inbound text via ${source} (${messageSid})`).run();
+      // Once the person replies, a human owns the thread.
+      await cancelUfytSmsSequence(env, leadId, 'replied');
+    }
+  }
+
+  if (keyword !== 'opt-out') {
+    ctx.waitUntil(
+      sendUfytInboundSmsAlerts(env, { messageSid, from, source, body, numMedia, leadId })
+        .then(() => env.DB.prepare(`UPDATE sms_messages SET alerted_at = datetime('now') WHERE message_sid = ?`).bind(messageSid).run())
+        .catch(error => console.error('Inbound SMS alert error:', error.message))
+    );
+  }
+  if (leadId) {
+    ctx.waitUntil(
+      mirrorSmsToCommunications(env, messageSid)
+        .catch(error => console.error('SMS communications mirror error:', error.message))
+    );
+  }
+
+  // The Messaging Service's opt-out handling sends the STOP/HELP confirmations.
+  return twimlResponse('');
+}
+
+async function handleSmsStatus(request, env, params) {
+  const status = String(params.MessageStatus || params.SmsStatus || '').toLowerCase();
+  if (!params.MessageSid || !status) {
+    return new Response(JSON.stringify({ success: false, error: 'MessageSid and MessageStatus are required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+  await env.DB.prepare(`
+    UPDATE sms_messages SET status = ?, error_code = COALESCE(?, error_code), updated_at = datetime('now') WHERE message_sid = ?
+  `).bind(status, params.ErrorCode || null, params.MessageSid).run();
+  return new Response(JSON.stringify({ success: true, status }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+function buildInboundSmsEmail(message) {
+  return `
+    <h2>New UFYT text message</h2>
+    <p><strong>From:</strong> <a href="sms:${escapeHtml(message.from)}">${escapeHtml(message.from)}</a></p>
+    <p><strong>Via:</strong> ${escapeHtml(message.source)} tracking number</p>
+    <p><strong>Message:</strong><br>${escapeHtml(message.body || '(no text)').replace(/\n/g, '<br>')}</p>
+    ${message.numMedia ? `<p><strong>Attachments:</strong> ${escapeHtml(message.numMedia)} (open in the inbox)</p>` : ''}
+    ${message.leadId ? `<p><strong>Lead ID:</strong> ${escapeHtml(message.leadId)}</p>` : ''}
+    <p><a href="https://inbox.ufyt.dev">Reply from the UFYT shared inbox</a> · <a href="https://ufyt-leads-dash.pages.dev">Lead Desk</a></p>
+  `;
+}
+
+async function sendUfytInboundSmsAlerts(env, message) {
+  const tasks = [];
+  const emails = String(env.UFYT_NOTIFICATION_EMAILS || '').split(',').map(email => email.trim()).filter(Boolean);
+  if (env.UFYT_RESEND_API_KEY && emails.length > 0) {
+    tasks.push(
+      fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${env.UFYT_RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Unfuck Your Taxes <leads@unfuckyourtaxes.com>',
+          to: emails,
+          subject: `New UFYT text from ${message.from}: ${String(message.body || '').slice(0, 60) || '(media)'}`,
+          html: buildInboundSmsEmail(message),
+        }),
+      }).then(response => { if (!response.ok) throw new Error(`Resend returned HTTP ${response.status}`); })
+    );
+  }
+  const smsRecipients = getUfytSmsAlertRecipients(env.UFYT_SMS_NOTIFICATION_NUMBERS);
+  const sendConfig = getUfytSmsSendConfig(env);
+  if (sendConfig && smsRecipients.length > 0) {
+    tasks.push(sendUfytSms({
+      ...sendConfig,
+      recipients: smsRecipients,
+      body: `UFYT text from ${message.from} (${message.source}): ${String(message.body || '(media)').slice(0, 120)}\nReply: https://inbox.ufyt.dev`,
+    }));
+  }
+  if (tasks.length === 0) {
+    console.warn('Inbound SMS alert skipped: no alert channel configured');
+    return;
+  }
+  await Promise.all(tasks);
+}
+
+function communicationsSmsEndpoint(env) {
+  if (env.COMMUNICATIONS_SMS_URL) return env.COMMUNICATIONS_SMS_URL;
+  const leads = env.COMMUNICATIONS_INGEST_URL || 'https://mathis-communications.mathisllc.workers.dev/api/integrations/leads';
+  return leads.replace(/\/api\/integrations\/leads$/, '/api/integrations/sms');
+}
+
+async function mirrorSmsToCommunications(env, messageSid) {
+  if (!env.COMMUNICATIONS_INGEST_SECRET) return false;
+  const message = await env.DB.prepare(`
+    SELECT m.*, l.name AS lead_name, l.email AS lead_email, l.phone AS lead_phone, l.problem AS lead_problem,
+           l.status AS lead_status, l.priority AS lead_priority, l.created_at AS lead_created_at
+    FROM sms_messages m JOIN leads l ON l.id = m.lead_id
+    WHERE m.message_sid = ?
+  `).bind(messageSid).first();
+  if (!message || !message.lead_id) return false;
+
+  const response = await fetch(communicationsSmsEndpoint(env), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.COMMUNICATIONS_INGEST_SECRET}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messageSid: message.message_sid,
+      direction: message.direction,
+      source: message.source || 'unknown',
+      trackingNumber: message.tracking_number || null,
+      counterpart: message.counterpart,
+      body: message.body || '',
+      numMedia: Number(message.num_media) || 0,
+      status: message.status,
+      optOut: Number(message.opt_out) === 1,
+      sentAt: message.created_at ? `${message.created_at.replace(' ', 'T')}Z` : null,
+      lead: {
+        id: message.lead_id,
+        source: 'taxes',
+        name: message.lead_name,
+        email: message.lead_email,
+        phone: message.lead_phone || null,
+        problem: message.lead_problem || null,
+        status: message.lead_status || 'new',
+        priority: message.lead_priority || 'medium',
+        createdAt: message.lead_created_at ? `${message.lead_created_at.replace(' ', 'T')}Z` : null,
+        externalUrl: 'https://ufyt-leads-dash.pages.dev',
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(`Communications OS returned HTTP ${response.status}`);
+  await env.DB.prepare(`UPDATE sms_messages SET mirrored_at = datetime('now') WHERE message_sid = ?`).bind(messageSid).run();
+  return true;
+}
+
+async function handleSmsRoute(request, env, ctx, path) {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+  const trackingNumbers = parseTrackingNumberMap(env.UFYT_TRACKING_NUMBERS);
+  if (!env.UFYT_TWILIO_AUTH_TOKEN) {
+    return new Response(JSON.stringify({ success: false, error: 'SMS is not configured' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+  }
+  const params = await readTwilioParams(request);
+  if (!(await verifyTwilioSignature(request, env.UFYT_TWILIO_AUTH_TOKEN, params))) {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid Twilio signature' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
+  try {
+    switch (path) {
+      case '/api/sms/inbound':
+        if (!params.MessageSid && !params.SmsMessageSid) {
+          return new Response(JSON.stringify({ success: false, error: 'MessageSid is required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }
+        return await handleSmsInbound(request, env, ctx, params, { trackingNumbers });
+      case '/api/sms/status':
+        return await handleSmsStatus(request, env, params);
+      default:
+        return new Response('Not found', { status: 404 });
+    }
+  } catch (error) {
+    console.error('SMS webhook error:', error);
+    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+async function handleGetSms(request, env, corsHeaders) {
+  try {
+    const url = new URL(request.url);
+    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 100, 500);
+    const leadId = parseInt(url.searchParams.get('lead_id'));
+    let query = `
+      SELECT m.id, m.message_sid, m.direction, m.source, m.tracking_number, m.counterpart, m.body, m.num_media,
+             m.status, m.error_code, m.lead_id, m.sequence_step, m.opt_out, m.created_at, l.name AS lead_name
+      FROM sms_messages m LEFT JOIN leads l ON l.id = m.lead_id WHERE 1=1`;
+    const params = [];
+    if (leadId) { query += ' AND m.lead_id = ?'; params.push(leadId); }
+    query += ' ORDER BY m.created_at DESC LIMIT ?';
+    params.push(limit);
+    const result = await env.DB.prepare(query).bind(...params).all();
+    return new Response(JSON.stringify({ success: true, messages: result.results, count: result.results.length }), { status: 200, headers: corsHeaders });
+  } catch (error) {
+    console.error('Get sms error:', error);
+    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), { status: 500, headers: corsHeaders });
+  }
+}
+
 function escapeHtml(value) {
   return String(value == null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -1494,4 +1950,9 @@ export {
   buildVoiceTwiml,
   buildWhisperTwiml,
   getUfytCallConfig,
+  UFYT_SMS_SEQUENCE,
+  SMS_CONSENT_VERSION,
+  classifySmsKeyword,
+  toE164,
+  processUfytSmsSequence,
 };
