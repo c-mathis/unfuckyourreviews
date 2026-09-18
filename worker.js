@@ -1088,13 +1088,20 @@ async function handleCallStatus(request, env, ctx, params, config) {
     );
   }
 
+  if (leadId) {
+    ctx.waitUntil(
+      mirrorCallToCommunications(env, callSid)
+        .catch(error => console.error('Call communications mirror error:', error.message))
+    );
+  }
+
   return new Response(JSON.stringify({ success: true, status, leadId, answered }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
 }
 
-async function handleCallRecording(request, env, params) {
+async function handleCallRecording(request, env, ctx, params) {
   await env.DB.prepare(`
     UPDATE calls
     SET recording_sid = ?, recording_url = ?, recording_duration_seconds = ?, updated_at = datetime('now')
@@ -1105,6 +1112,13 @@ async function handleCallRecording(request, env, params) {
     parseInt(params.RecordingDuration) || null,
     params.CallSid
   ).run();
+  const existing = await env.DB.prepare(`SELECT mirrored_at FROM calls WHERE call_sid = ?`).bind(params.CallSid).first();
+  if (existing && existing.mirrored_at) {
+    ctx.waitUntil(
+      mirrorCallToCommunications(env, params.CallSid)
+        .catch(error => console.error('Recording communications mirror error:', error.message))
+    );
+  }
   return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
@@ -1184,6 +1198,63 @@ async function sendUfytMissedCallAlerts(env, call) {
   await Promise.all(tasks);
 }
 
+function communicationsCallsEndpoint(env) {
+  if (env.COMMUNICATIONS_CALLS_URL) return env.COMMUNICATIONS_CALLS_URL;
+  const leads = env.COMMUNICATIONS_INGEST_URL || 'https://mathis-communications.mathisllc.workers.dev/api/integrations/leads';
+  return leads.replace(/\/api\/integrations\/leads$/, '/api/integrations/calls');
+}
+
+// Mirror a finished call into the lead's conversation in Communications OS.
+// Idempotent on the Communications side by call SID, so it is safe to send
+// again when the recording URL arrives after the status callback.
+async function mirrorCallToCommunications(env, callSid) {
+  if (!env.COMMUNICATIONS_INGEST_SECRET) return false;
+  const call = await env.DB.prepare(`
+    SELECT c.*, l.name AS lead_name, l.email AS lead_email, l.phone AS lead_phone, l.problem AS lead_problem,
+           l.status AS lead_status, l.priority AS lead_priority, l.created_at AS lead_created_at
+    FROM calls c JOIN leads l ON l.id = c.lead_id
+    WHERE c.call_sid = ?
+  `).bind(callSid).first();
+  if (!call || !call.lead_id) return false;
+
+  const response = await fetch(communicationsCallsEndpoint(env), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.COMMUNICATIONS_INGEST_SECRET}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      callSid: call.call_sid,
+      source: call.source,
+      trackingNumber: call.tracking_number,
+      caller: call.caller || null,
+      callerName: call.caller_name || null,
+      answered: Number(call.answered) === 1,
+      outcome: describeCallOutcome(call),
+      durationSeconds: Number(call.duration_seconds) || 0,
+      recordingUrl: call.recording_url || null,
+      startedAt: call.started_at ? `${call.started_at.replace(' ', 'T')}Z` : null,
+      lead: {
+        id: call.lead_id,
+        source: 'taxes',
+        name: call.lead_name,
+        email: call.lead_email,
+        phone: call.lead_phone || null,
+        problem: call.lead_problem || null,
+        status: call.lead_status || 'new',
+        priority: call.lead_priority || 'medium',
+        createdAt: call.lead_created_at ? `${call.lead_created_at.replace(' ', 'T')}Z` : null,
+        externalUrl: 'https://ufyt-leads-dash.pages.dev',
+      },
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Communications OS returned HTTP ${response.status}`);
+  }
+  await env.DB.prepare(`UPDATE calls SET mirrored_at = datetime('now') WHERE call_sid = ?`).bind(callSid).run();
+  return true;
+}
+
 async function handleCallRoute(request, env, ctx, path) {
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
@@ -1221,7 +1292,7 @@ async function handleCallRoute(request, env, ctx, path) {
       case '/api/calls/status':
         return await handleCallStatus(request, env, ctx, params, config);
       case '/api/calls/recording':
-        return await handleCallRecording(request, env, params);
+        return await handleCallRecording(request, env, ctx, params);
       default:
         return new Response('Not found', { status: 404 });
     }

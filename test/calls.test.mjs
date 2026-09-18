@@ -49,6 +49,8 @@ function freshEnv() {
     UFYT_TRACKING_NUMBERS: `${EMAIL_NUMBER}=email-followup,${META_NUMBER}=meta-ads`,
     UFYT_RESEND_API_KEY: 're_test',
     UFYT_NOTIFICATION_EMAILS: 'sales@example.com, second@example.com',
+    COMMUNICATIONS_INGEST_SECRET: 'comms-secret',
+    COMMUNICATIONS_INGEST_URL: 'https://inbox.example/api/integrations/leads',
   };
 }
 
@@ -212,7 +214,18 @@ describe('call completion and lead linking', () => {
     assert.equal(activity.length, 1);
     assert.equal(activity[0].activity_type, 'call_received');
     await Promise.all(waited);
-    assert.equal(fetchCalls.length, 0, 'answered calls do not send alerts');
+    assert.equal(fetchCalls.length, 1, 'answered calls mirror to Communications OS without an alert');
+    assert.equal(fetchCalls[0].url, 'https://inbox.example/api/integrations/calls');
+    assert.equal(fetchCalls[0].init.headers.Authorization, 'Bearer comms-secret');
+    const mirrored = JSON.parse(fetchCalls[0].init.body);
+    assert.equal(mirrored.callSid, 'CA200');
+    assert.equal(mirrored.answered, true);
+    assert.equal(mirrored.outcome, 'answered');
+    assert.equal(mirrored.durationSeconds, 120);
+    assert.equal(mirrored.lead.id, call.lead_id);
+    assert.equal(mirrored.lead.email, 'phone-19165551234@calls.unfuckyourtaxes.com');
+    assert.match(mirrored.startedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    assert.ok(row('CA200').mirrored_at);
   });
 
   it('links a call to an existing quiz lead that has a formatted phone number', async () => {
@@ -233,9 +246,12 @@ describe('call completion and lead linking', () => {
     const { text } = await twilioPost('/api/calls/status', { CallSid: 'CA202', CallStatus: 'completed', CallDuration: '31', From: '+19165551234', To: META_NUMBER });
     assert.equal(JSON.parse(text).answered, false);
     await Promise.all(waited);
-    assert.equal(fetchCalls.length, 1);
-    const sent = JSON.parse(fetchCalls[0].init.body);
-    assert.equal(fetchCalls[0].url, 'https://api.resend.com/emails');
+    const resend = fetchCalls.filter(f => f.url === 'https://api.resend.com/emails');
+    const mirror = fetchCalls.filter(f => f.url === 'https://inbox.example/api/integrations/calls');
+    assert.equal(resend.length, 1);
+    assert.equal(mirror.length, 1);
+    assert.equal(JSON.parse(mirror[0].init.body).outcome, 'missed (no answer)');
+    const sent = JSON.parse(resend[0].init.body);
     assert.deepEqual(sent.to, ['sales@example.com', 'second@example.com']);
     assert.match(sent.subject, /Missed UFYT call: \+19165551234 \(meta-ads\)/);
     assert.match(sent.html, /missed \(no answer\)/);
@@ -250,6 +266,31 @@ describe('call completion and lead linking', () => {
     assert.equal(call.source, 'meta-ads');
     assert.equal(call.status, 'no-answer');
     assert.ok(call.lead_id);
+  });
+});
+
+describe('communications mirror', () => {
+  it('re-sends the call with the recording URL when the recording arrives after completion', async () => {
+    await twilioPost('/api/calls/voice', { CallSid: 'CA400', From: '+19165551234', To: META_NUMBER });
+    await twilioPost('/api/calls/dial?source=meta-ads', { CallSid: 'CA400', DialCallStatus: 'completed' });
+    await twilioPost('/api/calls/status', { CallSid: 'CA400', CallStatus: 'completed', CallDuration: '50', From: '+19165551234', To: META_NUMBER });
+    await Promise.all(waited);
+    waited = [];
+    fetchCalls = [];
+    await twilioPost('/api/calls/recording', { CallSid: 'CA400', RecordingSid: 'RE4', RecordingUrl: 'https://api.twilio.com/rec/RE4', RecordingDuration: '48' });
+    await Promise.all(waited);
+    assert.equal(fetchCalls.length, 1);
+    assert.equal(JSON.parse(fetchCalls[0].init.body).recordingUrl, 'https://api.twilio.com/rec/RE4');
+  });
+
+  it('skips the mirror when the Communications OS secret is absent', async () => {
+    delete env.COMMUNICATIONS_INGEST_SECRET;
+    await twilioPost('/api/calls/voice', { CallSid: 'CA401', From: '+19165551234', To: META_NUMBER });
+    await twilioPost('/api/calls/dial?source=meta-ads', { CallSid: 'CA401', DialCallStatus: 'completed' });
+    await twilioPost('/api/calls/status', { CallSid: 'CA401', CallStatus: 'completed', CallDuration: '50', From: '+19165551234', To: META_NUMBER });
+    await Promise.all(waited);
+    assert.equal(fetchCalls.length, 0);
+    assert.equal(row('CA401').mirrored_at, null);
   });
 });
 
