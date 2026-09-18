@@ -205,10 +205,15 @@ export default {
 
       console.log('Lead saved:', result.meta.last_row_id);
 
+      // Internal QA submissions must never reach ad platforms, the sales
+      // inbox, or SMS. They still hit D1 and email so the path can be tested.
+      const isInternalTest = /\bQA TEST\b/i.test(String(data.name || '')) || data.qa_test === true;
+      if (isInternalTest) console.log('Internal test submission: skipping Meta CAPI, inbox sync, and SMS');
+
       // Mirror UFYT leads into the Fortifi communications backend. This runs after
       // the local D1 write, is idempotent by lead ID, and never blocks the
       // public form response if the communications service is unavailable.
-      if (source === 'taxes' && env.COMMUNICATIONS_INGEST_SECRET) {
+      if (source === 'taxes' && !isInternalTest && env.COMMUNICATIONS_INGEST_SECRET) {
         ctx.waitUntil(
           sendUfytLeadToCommunications({
             endpoint: env.COMMUNICATIONS_INGEST_URL || 'https://mathis-communications.mathisllc.workers.dev/api/integrations/leads',
@@ -221,7 +226,7 @@ export default {
 
       // Keep UFYT SMS alerts privacy-minimized and brand-scoped. The helper
       // is disabled unless every required Twilio setting is present.
-      if (source === 'taxes') {
+      if (source === 'taxes' && !isInternalTest) {
         const smsRecipients = getUfytSmsAlertRecipients(env.UFYT_SMS_NOTIFICATION_NUMBERS);
         const smsConfigured = env.UFYT_TWILIO_ACCOUNT_SID
           && env.UFYT_TWILIO_API_KEY_SID
@@ -249,7 +254,7 @@ export default {
         ? { token: env.UFYT_META_ACCESS_TOKEN, pixelId: '1708599440630382', contentName: 'Tax Help Request' }
         : { token: env.META_ACCESS_TOKEN, pixelId: '1494351685495599', contentName: null };
       const capiSources = ['web', 'reviews', 'ads', 'taxes'];
-      if (metaConfig.token && capiSources.includes(source)) {
+      if (metaConfig.token && capiSources.includes(source) && !isInternalTest) {
         const contentNames = {
           web: 'Website Audit Request',
           reviews: 'Review Management Service',
