@@ -395,7 +395,8 @@ Jokes aside, you're in good hands.
               subject: `${brand.subject}: ${data.name}`,
               html: internalNotificationHtml,
             }),
-          }).catch(err => console.error('Internal email error:', err))
+          }).then(res => logResendOutcome('Internal email', res))
+            .catch(err => console.error('Internal email error:', err))
         );
 
         // Confirmation email to user
@@ -413,7 +414,8 @@ Jokes aside, you're in good hands.
               subject: brand.userSubject,
               text: brand.userMessage,
             }),
-          }).catch(err => console.error('Confirmation email error:', err))
+          }).then(res => logResendOutcome('Confirmation email', res))
+            .catch(err => console.error('Confirmation email error:', err))
         );
       }
 
@@ -434,6 +436,17 @@ Jokes aside, you're in good hands.
     }
   }
 };
+
+// Resend answers with 4xx/5xx JSON on rejection; log it so a silently
+// dropped notification is visible in the Worker tail.
+async function logResendOutcome(label, response) {
+  if (response.ok) {
+    console.log(label + ' sent:', response.status);
+    return;
+  }
+  const body = await response.text().catch(() => '');
+  console.error(label + ' rejected:', response.status, body.slice(0, 500));
+}
 
 // ============================================
 // API ENDPOINT HANDLERS
