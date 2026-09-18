@@ -44,8 +44,8 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 
 ### Phase 2: Alerts, inbox mirror, and Lead Desk
 - [x] Send the internal UFYT email alert (and SMS alert when Twilio SMS is active) for missed or unanswered calls with a Lead Desk link
-- [ ] Add /api/integrations/calls to Communications OS that appends a call record to the lead's conversation, creating the contact and conversation for unknown callers, with vitest coverage
-- [ ] Mirror each completed call from the Worker to Communications OS after the D1 write
+- [x] Add /api/integrations/calls to Communications OS that appends a call record to the lead's conversation, creating the contact and conversation for unknown callers, with vitest coverage
+- [x] Mirror each completed call from the Worker to Communications OS after the D1 write
 - [ ] Show calls (source, caller, duration, status, recording link) in the UFYT Lead Desk
 
 ### Phase 3: Provisioning and go-live
