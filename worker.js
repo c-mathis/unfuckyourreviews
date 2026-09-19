@@ -1,3 +1,9 @@
+import {
+  enqueueUfytEmailSequence,
+  handleUfytEmailSequenceRequest,
+  processUfytEmailSequence,
+} from './ufyt-email-sequence.js';
+
 // Cloudflare Worker for Unfuck Your Reviews Lead Capture
 // Handles form submissions + dashboard API
 
@@ -78,6 +84,12 @@ async function checkRateLimit(ip, env) {
 }
 
 export default {
+  // Cron: send due UFYT follow-up emails.
+  async scheduled(event, env, ctx) {
+    const outcome = await processUfytEmailSequence(env);
+    console.log('UFYT email sequence run:', JSON.stringify(outcome));
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -111,6 +123,12 @@ export default {
         return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
       }
       return handleUpdateLead(request, env, corsHeaders);
+    }
+
+    // UFYT email follow-up sequence + booking/reply signals (bearer-protected).
+    if (path.startsWith('/api/ufyt/')) {
+      const handled = await handleUfytEmailSequenceRequest(request, env, path);
+      if (handled) return handled;
     }
 
     if (path === '/api/sync-communications' && request.method === 'POST') {
@@ -209,6 +227,16 @@ export default {
       // inbox, or SMS. They still hit D1 and email so the path can be tested.
       const isInternalTest = /\bQA TEST\b/i.test(String(data.name || '')) || data.qa_test === true;
       if (isInternalTest) console.log('Internal test submission: skipping Meta CAPI, inbox sync, and SMS');
+
+      // Queue the UFYT email follow-up sequence. Steps go out from the cron and
+      // stop when the lead books, replies, opts out, or leaves "new".
+      if (source === 'taxes' && data.email) {
+        ctx.waitUntil(
+          enqueueUfytEmailSequence(env, { leadId: result.meta.last_row_id, email: data.email })
+            .then(outcome => console.log('UFYT email sequence:', JSON.stringify(outcome)))
+            .catch(error => console.error('UFYT email sequence enqueue error:', error.message))
+        );
+      }
 
       // Mirror UFYT leads into the Fortifi communications backend. This runs after
       // the local D1 write, is idempotent by lead ID, and never blocks the
