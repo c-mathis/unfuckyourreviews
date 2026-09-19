@@ -24,8 +24,8 @@ UFYT_EMAIL_SEQUENCE_ENABLED = "false"
 UFYT_BOOKING_URL = "https://book.ufyt.dev"
 UFYT_UNSUBSCRIBE_URL = "https://book.ufyt.dev/email/stop"
 UFYT_PHONE = "213-752-5732"
-UFYT_EMAIL_FROM = "Unfuck Your Taxes <hello@unfuckyourtaxes.com>"
-UFYT_EMAIL_REPLY_TO = "hello@unfuckyourtaxes.com"
+UFYT_EMAIL_FROM = "Trevon Gibson <trevon@unfuckyourtaxes.com>"
+UFYT_EMAIL_REPLY_TO = "trevon@unfuckyourtaxes.com"
 
 # UFYT email follow-up sequence: send due steps every ten minutes.
 [triggers]

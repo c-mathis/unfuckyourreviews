@@ -1,15 +1,26 @@
 // ============================================
 // UFYT EMAIL FOLLOW-UP SEQUENCE
 // ============================================
-// Tax leads get a short follow-up sequence after the confirmation email,
-// each step pointing at the booking page and the call-or-text number. Steps
-// stop when the lead books, replies, opts out, or sales moves the lead past
-// "new". Sending happens from a cron; enqueueing happens at submission.
+// Tax leads get a short follow-up sequence from Trevon after the hello@
+// confirmation email. Every step points at the booking page and the
+// call-or-text number. Steps stop when the lead books, replies, opts out, or
+// sales moves the lead past "new". Sending happens from a cron; enqueueing
+// happens at submission.
+//
+// Cadence (Pacific business days):
+//   1  two to three hours after the quiz when that lands inside a weekday
+//      08:00–17:00 window; otherwise the next business morning 08:45–10:15
+//   2  day 2   } random time 09:00–15:00, weekends roll to Monday,
+//   3  day 4   } never two steps on the same calendar day
+//   4  day 8   }
 
-const BRAND = 'Unf*ck Your Taxes';
 const SEND_WINDOW = { timeZone: 'America/Los_Angeles', startHour: 8, endHour: 18 };
+const TIME_ZONE = SEND_WINDOW.timeZone;
 
-// Which of the quiz's "What's going on" answers this lead picked.
+const SIGNATURE = 'Trevon Gibson\nChief Tax Unf*cker\n213-752-5732\nunfuckyourtaxes.com';
+
+// Which of the quiz's "What's going on" answers this lead picked. Kept for the
+// Lead Desk and preview tooling; the current copy does not branch on it.
 const PROBLEM_KEYS = [
   [/owe money/i, 'owe'],
   [/unfiled/i, 'unfiled'],
@@ -17,94 +28,73 @@ const PROBLEM_KEYS = [
   [/filing or organizing|need help filing/i, 'filing'],
 ];
 
+// A body is a list of paragraphs. Strings render as paragraphs (inner "\n"
+// becomes a line break); { prefix, link: true } renders the booking link.
 export const UFYT_EMAIL_SEQUENCE = [
   {
     step: 1,
-    offsetHours: 2,
-    subject: () => 'Want to skip the wait?',
-    body: ({ first, bookingUrl, phone }) => [
-      greet(first),
-      `You’ll hear from one of us within a business day. If you’d rather not wait, grab a time and we’ll call you then:`,
-      bookingUrl,
-      `Or call or text ${phone}.`,
-      `Have the notice or letter handy if you got one. That’s the only prep.`,
-      sign(),
+    label: 'same day',
+    offsetDays: 0,
+    subject: () => 'your taxes',
+    body: ({ first, phone }) => [
+      greet('Hey', first),
+      `Trevon here from Unfuck Your Taxes. Let's chat so you can tell me about your tax problems.`,
+      `It doesn't matter how big of a mess it is. I can help you solve it.`,
+      `You don't need to prepare anything ahead of time for the call. Pretty casual.`,
+      { prefix: 'Book a meeting with me here: ', link: true },
+      `Or call or text me at ${phone}`,
+      SIGNATURE,
     ],
   },
   {
     step: 2,
-    offsetHours: 26,
-    subject: ({ problem }) => ({
-      owe: 'About that IRS balance',
-      unfiled: 'About those unfiled returns',
-      notice: 'About that IRS notice',
-      filing: 'About getting your taxes straightened out',
-    })[problem] || 'About your tax situation',
-    body: ({ first, problem, bookingUrl }) => [
-      `${first ? `${first}, quick` : 'Quick'} one.`,
-      {
-        owe: `You told us you owe the IRS or the state. First thing we do on the call is figure out what you actually owe and what they’re likely to do next. You won’t get a number out of thin air.`,
-        unfiled: `You told us you’ve got unfiled returns. Those don’t clear themselves. The IRS can file a return for you, and their version doesn’t include your deductions.`,
-        notice: `You told us you got a notice or you’re being audited. Notices have deadlines, and missing one usually makes it more expensive, not less. Bring the letter to the call and we’ll tell you what it means in plain English.`,
-        filing: `You told us you need help filing or getting organized. On the call we’ll tell you what it takes to get you current and what it costs. Nothing billable until you say so.`,
-      }[problem] || `You told us you’re not sure what you’re dealing with. That’s fine. Most people aren’t until someone looks at the actual record. That’s what the call is for.`,
-      `Still want it looked at? Pick a time and we’ll call you:`,
-      bookingUrl,
-      `Or just reply to this email with what’s going on.`,
-      sign(),
+    label: 'day 2',
+    offsetDays: 2,
+    subject: () => 'checking in',
+    body: ({ first, phone }) => [
+      greet('Hey', first),
+      `How are things?`,
+      `I want to make sure we talk about your taxes.`,
+      `Especially if the IRS has been sending you notices.`,
+      `Let's do it.`,
+      { prefix: 'Book a meeting with me here: ', link: true },
+      `Or call or text me at ${phone}`,
+      SIGNATURE,
     ],
   },
   {
     step: 3,
-    offsetHours: 72,
-    subject: () => 'What happens if this sits',
-    body: ({ first, problem, bookingUrl }) => [
-      greet(first),
-      `Straight answer on what happens if this sits:`,
-      ...({
-        owe: [
-          `- Penalties and interest keep stacking every month. The IRS doesn’t pause them while you think it over.`,
-          `- Collections escalate on their schedule, not yours: letters, then liens, then levies.`,
-        ],
-        unfiled: [
-          `- If you owe for an unfiled year, the failure-to-file penalty keeps growing until the return is in.`,
-          `- If you were due a refund, you have three years to claim it. After that it’s gone.`,
-          `- The IRS can file a substitute return for you, and it won’t include your deductions.`,
-        ],
-        notice: [
-          `- The deadline on the notice is real. After it passes, your options narrow and the balance usually grows.`,
-          `- Audit and CP2000 responses go better before the IRS finalizes its numbers.`,
-        ],
-      }[problem] || [
-        `- Whatever it turns out to be, it’s cheaper to deal with early. Penalties and interest only run one direction.`,
-        `- Unfiled years and unanswered notices don’t expire. They wait.`,
-      ]),
-      `None of that has to happen. Pick a time and let’s look at it:`,
-      bookingUrl,
-      sign(),
+    label: 'day 4',
+    offsetDays: 4,
+    subject: () => 'best time to call?',
+    body: ({ first, phone }) => [
+      greet('Hey again', first),
+      `Is there a certain time of day that works best for me to call you? Maybe that makes it easier on you.`,
+      `Here to help.`,
+      `Let me know.`,
+      { prefix: 'Book a meeting: ', link: true },
+      phone,
+      SIGNATURE,
     ],
   },
   {
     step: 4,
-    offsetHours: 168,
-    subject: () => 'We’ll leave it here',
-    body: ({ first, bookingUrl, phone }) => [
-      greet(first),
-      `Last one from us. If the timing’s wrong, no problem.`,
-      `If you still want this sorted, pick a time or reply and we’ll call you:`,
-      bookingUrl,
-      `Call or text: ${phone}`,
-      sign(),
+    label: 'day 8',
+    offsetDays: 8,
+    subject: () => 'you there?',
+    body: ({ first, phone }) => [
+      first ? `You there, ${first}?` : 'You there?',
+      `I figure you're busy, so save my info for later so we can chat.`,
+      `Best to take care of it. You'll be in good hands.`,
+      { prefix: 'Book a meeting: ', link: true },
+      phone,
+      SIGNATURE,
     ],
   },
 ];
 
-function greet(first) {
-  return first ? `Hey ${first},` : 'Hey,';
-}
-
-function sign() {
-  return `— ${BRAND}`;
+function greet(word, first) {
+  return first ? `${word} ${first},` : `${word},`;
 }
 
 export function getUfytEmailSequenceConfig(env) {
@@ -112,8 +102,8 @@ export function getUfytEmailSequenceConfig(env) {
     enabled: String(env.UFYT_EMAIL_SEQUENCE_ENABLED || '').toLowerCase() === 'true',
     resendApiKey: env.UFYT_RESEND_API_KEY || null,
     resendBase: (env.UFYT_RESEND_API_BASE || 'https://api.resend.com').replace(/\/+$/, ''),
-    from: env.UFYT_EMAIL_FROM || 'Unfuck Your Taxes <hello@unfuckyourtaxes.com>',
-    replyTo: env.UFYT_EMAIL_REPLY_TO || 'hello@unfuckyourtaxes.com',
+    from: env.UFYT_EMAIL_FROM || 'Trevon Gibson <trevon@unfuckyourtaxes.com>',
+    replyTo: env.UFYT_EMAIL_REPLY_TO || 'trevon@unfuckyourtaxes.com',
     bookingUrl: (env.UFYT_BOOKING_URL || 'https://book.ufyt.dev').replace(/\/+$/, ''),
     unsubscribeUrl: (env.UFYT_UNSUBSCRIBE_URL || 'https://book.ufyt.dev/email/stop').replace(/\/+$/, ''),
     phone: env.UFYT_PHONE || '213-752-5732',
@@ -158,36 +148,32 @@ export function renderUfytEmailStep(config, template, lead, payload) {
   const paragraphs = template.body(vars);
   const unsubscribe = lead.unsubscribeUrl || null;
 
-  const text = paragraphs.join('\n\n') + (unsubscribe ? `\n\nDon’t want these? ${unsubscribe}` : '');
-  const html = renderHtml(paragraphs, vars.bookingUrl, unsubscribe);
+  const text = paragraphs
+    .map(paragraph => (typeof paragraph === 'string' ? paragraph : `${paragraph.prefix}${vars.bookingUrl}`))
+    .join('\n\n') + (unsubscribe ? `\n\nDon’t want these? ${unsubscribe}` : '');
+  const html = renderHtml(paragraphs, vars, config, unsubscribe);
   return { subject, text, html, bookingUrl: vars.bookingUrl };
 }
 
-function renderHtml(paragraphs, bookingUrl, unsubscribe) {
-  const blocks = [];
-  let list = [];
-  const flush = () => {
-    if (list.length) {
-      blocks.push(`<ul style="margin:0 0 18px;padding-left:20px">${list.map(item => `<li style="margin:0 0 8px">${item}</li>`).join('')}</ul>`);
-      list = [];
+/** Plain, personal-looking HTML: no brand chrome, just paragraphs and links. */
+function renderHtml(paragraphs, vars, config, unsubscribe) {
+  const phoneDigits = String(config.phone).replace(/\D/g, '');
+  const phoneHref = phoneDigits.length === 10 ? `tel:+1${phoneDigits}` : `tel:${phoneDigits}`;
+  const linkify = escaped => escaped
+    .replaceAll(escapeHtml(config.phone), `<a href="${phoneHref}" style="color:#111111">${escapeHtml(config.phone)}</a>`)
+    .replaceAll('unfuckyourtaxes.com', `<a href="https://unfuckyourtaxes.com" style="color:#111111">unfuckyourtaxes.com</a>`);
+
+  const blocks = paragraphs.map(paragraph => {
+    if (typeof paragraph !== 'string') {
+      const host = vars.bookingUrl.replace(/^https?:\/\//, '').split(/[/?]/)[0];
+      return `<p style="margin:0 0 16px">${escapeHtml(paragraph.prefix)}<a href="${escapeHtml(vars.bookingUrl)}" style="color:#078bff">${escapeHtml(host)}</a></p>`;
     }
-  };
-  for (const paragraph of paragraphs) {
-    if (paragraph.startsWith('- ')) {
-      list.push(escapeHtml(paragraph.slice(2)));
-      continue;
-    }
-    flush();
-    if (paragraph === bookingUrl) {
-      blocks.push(`<p style="margin:0 0 22px"><a href="${escapeHtml(bookingUrl)}" style="display:inline-block;background:#078bff;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:0.1em;padding:14px 22px;border-radius:999px">PICK A TIME</a><br><span style="font-size:12px;color:#60605d">${escapeHtml(bookingUrl)}</span></p>`);
-    } else {
-      blocks.push(`<p style="margin:0 0 18px">${escapeHtml(paragraph)}</p>`);
-    }
-  }
-  flush();
-  return `<div style="font-family:'DM Sans',Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px 24px;color:#050505;background:#f8f8f4;font-size:16px;line-height:1.6">
+    return `<p style="margin:0 0 16px">${linkify(escapeHtml(paragraph)).replaceAll('\n', '<br>')}</p>`;
+  });
+
+  return `<div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;color:#111111;font-size:16px;line-height:1.5">
 ${blocks.join('\n')}
-${unsubscribe ? `<hr style="border:none;border-top:1px solid rgba(5,5,5,0.15);margin:28px 0 14px"><p style="margin:0;font-size:12px;color:#60605d">Don’t want these? <a href="${escapeHtml(unsubscribe)}" style="color:#60605d">Stop the follow-up emails</a>.</p>` : ''}
+${unsubscribe ? `<p style="margin:28px 0 0;font-size:12px;color:#777777">Don’t want these? <a href="${escapeHtml(unsubscribe)}" style="color:#777777">Stop the follow-up emails</a>.</p>` : ''}
 </div>`;
 }
 
@@ -198,6 +184,91 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+// ---------- Scheduling ----------
+
+function localParts(date, timeZone = TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23', weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(date);
+  const get = type => parts.find(part => part.type === type)?.value;
+  return {
+    year: Number(get('year')), month: Number(get('month')), day: Number(get('day')),
+    hour: Number(get('hour')) % 24, minute: Number(get('minute')), weekday: get('weekday'),
+  };
+}
+
+const asUtc = p => Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+const DAY = 86_400_000;
+
+/** Calendar day (UTC midnight of the Pacific date) an instant falls on. */
+function calendarDayOf(date) {
+  const p = localParts(date);
+  return Date.UTC(p.year, p.month - 1, p.day);
+}
+
+function isWeekend(calendarDay) {
+  const dow = new Date(calendarDay).getUTCDay();
+  return dow === 0 || dow === 6;
+}
+
+function nextBusinessDay(calendarDay) {
+  let day = calendarDay + DAY;
+  while (isWeekend(day)) day += DAY;
+  return day;
+}
+
+function rollToBusinessDay(calendarDay) {
+  let day = calendarDay;
+  while (isWeekend(day)) day += DAY;
+  return day;
+}
+
+/** UTC instant for a Pacific wall-clock time on a calendar day. */
+export function zonedTime(calendarDay, minutesIntoDay, timeZone = TIME_ZONE) {
+  const d = new Date(calendarDay);
+  const guess = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), Math.floor(minutesIntoDay / 60), minutesIntoDay % 60);
+  const first = guess + (guess - asUtc(localParts(new Date(guess), timeZone)));
+  // One correction pass covers a DST change between the guess and the target.
+  return new Date(first + (guess - asUtc(localParts(new Date(first), timeZone))));
+}
+
+const minutes = (h, m = 0) => h * 60 + m;
+
+function scheduleFirstStep(now, rand) {
+  const local = localParts(now);
+  const today = Date.UTC(local.year, local.month - 1, local.day);
+  const weekday = !isWeekend(today);
+
+  if (weekday && local.hour >= 8) {
+    const candidate = new Date(now.getTime() + (120 + Math.floor(rand() * 61)) * 60_000);
+    const c = localParts(candidate);
+    if (calendarDayOf(candidate) === today && c.hour < 17) return candidate;
+  }
+  const morning = minutes(8, 45) + Math.floor(rand() * 91);
+  const day = weekday && local.hour < 8 ? today : nextBusinessDay(today);
+  return zonedTime(day, morning);
+}
+
+/** Send instants for every step of a lead that arrived at `now`. */
+export function scheduleUfytEmailSequence(now, rand = Math.random, steps = UFYT_EMAIL_SEQUENCE) {
+  const leadDay = calendarDayOf(now);
+  const schedule = [];
+  let lastDay = null;
+  for (const step of steps) {
+    let sendAt;
+    if (step.step === 1) {
+      sendAt = scheduleFirstStep(now, rand);
+    } else {
+      let day = rollToBusinessDay(leadDay + step.offsetDays * DAY);
+      while (lastDay !== null && day <= lastDay) day = nextBusinessDay(day);
+      sendAt = zonedTime(day, minutes(9) + Math.floor(rand() * 6 * 60));
+    }
+    lastDay = calendarDayOf(sendAt);
+    schedule.push({ step: step.step, sendAt });
+  }
+  return schedule;
 }
 
 // ---------- Send window ----------
@@ -265,12 +336,9 @@ export async function enqueueUfytEmailSequence(env, { leadId, email, now = new D
   `).bind(email).first();
   if (optedOut) return { queued: false, reason: 'opted-out' };
 
-  await env.DB.batch(UFYT_EMAIL_SEQUENCE.map(step => {
-    const sendAt = adjustToSendWindow(new Date(now.getTime() + step.offsetHours * 3_600_000));
-    return env.DB.prepare(`
-      INSERT OR IGNORE INTO email_sequence (lead_id, step, send_at) VALUES (?, ?, ?)
-    `).bind(leadId, step.step, sqliteDate(sendAt));
-  }));
+  await env.DB.batch(scheduleUfytEmailSequence(now).map(({ step, sendAt }) => env.DB.prepare(`
+    INSERT OR IGNORE INTO email_sequence (lead_id, step, send_at) VALUES (?, ?, ?)
+  `).bind(leadId, step, sqliteDate(sendAt))));
   return { queued: true, steps: UFYT_EMAIL_SEQUENCE.length };
 }
 
@@ -449,7 +517,8 @@ export function previewUfytEmailSequence(config, { problem = 'owe', lead = SAMPL
   }[problem] || problem };
   return UFYT_EMAIL_SEQUENCE.map(template => ({
     step: template.step,
-    offsetHours: template.offsetHours,
+    label: template.label,
+    offsetDays: template.offsetDays,
     ...renderUfytEmailStep(config, template, lead, payload),
   }));
 }
@@ -470,8 +539,7 @@ export async function sendUfytEmailSequencePreview(env, { to, problem = 'owe', l
     const rendered = payload
       ? renderUfytEmailStep(config, template, lead, payload)
       : previewUfytEmailSequence(config, { problem, lead }).find(item => item.step === template.step);
-    const hours = template.offsetHours;
-    const when = hours >= 24 ? `day ${Math.round(hours / 24)}` : `${hours}h`;
+    const when = template.label;
     const result = await sendViaResend(config, {
       to,
       subject: `[PREVIEW ${template.step}/${UFYT_EMAIL_SEQUENCE.length} · ${when}] ${rendered.subject}`,
