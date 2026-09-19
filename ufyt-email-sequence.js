@@ -35,7 +35,7 @@ export const UFYT_EMAIL_SEQUENCE = [
     step: 1,
     label: 'same day',
     offsetDays: 0,
-    subject: () => 'your taxes',
+    subject: () => 'Unf*ck Your Taxes - About your tax problems.',
     body: ({ first, phone }) => [
       greet('Hey', first),
       `Trevon here from Unfuck Your Taxes. Let's chat so you can tell me about your tax problems.`,
@@ -50,7 +50,7 @@ export const UFYT_EMAIL_SEQUENCE = [
     step: 2,
     label: 'day 2',
     offsetDays: 2,
-    subject: () => 'checking in',
+    subject: () => "Hey It's Unf*ck Your Taxes",
     body: ({ first, phone }) => [
       greet('Hey', first),
       `How are things?`,
@@ -66,7 +66,7 @@ export const UFYT_EMAIL_SEQUENCE = [
     step: 3,
     label: 'day 4',
     offsetDays: 4,
-    subject: () => 'best time to call?',
+    subject: () => 'When can we chat?',
     body: ({ first, phone }) => [
       greet('Hey again', first),
       `Is there a certain time of day that works best for me to call you? Maybe that makes it easier on you.`,
@@ -81,7 +81,7 @@ export const UFYT_EMAIL_SEQUENCE = [
     step: 4,
     label: 'day 8',
     offsetDays: 8,
-    subject: () => 'you there?',
+    subject: () => "Don't forget",
     body: ({ first, phone }) => [
       first ? `You there, ${first}?` : 'You there?',
       `I figure you're busy, so save my info for later so we can chat.`,

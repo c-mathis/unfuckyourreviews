@@ -83,7 +83,7 @@ test('preview covers all problem variants without throwing', () => {
     assert.equal(emails.length, 4);
     assert.deepEqual(emails.map(e => e.offsetDays), [0, 2, 4, 8]);
   }
-  assert.deepEqual(previewUfytEmailSequence(config, { problem: 'notice' }).map(e => e.subject), ['your taxes', 'checking in', 'best time to call?', 'you there?']);
+  assert.deepEqual(previewUfytEmailSequence(config, { problem: 'notice' }).map(e => e.subject), ['Unf*ck Your Taxes - About your tax problems.', "Hey It's Unf*ck Your Taxes", 'When can we chat?', "Don't forget"]);
 });
 
 test('sqliteDate matches datetime(now) shape', () => {
