@@ -2,6 +2,8 @@ name = "unfuck-leads-worker"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 workers_dev = true
+# Dashboard-managed vars/secrets survive deploys.
+keep_vars = true
 preview_urls = true
 
 # D1 Database binding
@@ -15,3 +17,16 @@ database_id = "20ec98a7-8f00-48ed-938a-bc1c4946bf40"
 [[routes]]
 pattern = "leads.unfuckyourweb.com/*"
 zone_name = "unfuckyourweb.com"
+
+[vars]
+# Flip to "true" to start queueing and sending the UFYT email follow-up sequence.
+UFYT_EMAIL_SEQUENCE_ENABLED = "true"
+UFYT_BOOKING_URL = "https://book.ufyt.dev"
+UFYT_UNSUBSCRIBE_URL = "https://book.ufyt.dev/email/stop"
+UFYT_PHONE = "213-752-5732"
+UFYT_EMAIL_FROM = "Trevon Gibson <trevon@unfuckyourtaxes.com>"
+UFYT_EMAIL_REPLY_TO = "trevon@unfuckyourtaxes.com"
+
+# UFYT email follow-up sequence: send due steps every ten minutes.
+[triggers]
+crons = ["*/10 * * * *"]
