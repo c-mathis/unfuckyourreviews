@@ -2,7 +2,7 @@
 project: UFYT Call Tracking Numbers
 repo: c-mathis/unfuckyourreviews
 branch: ufyt-call-tracking
-status: active
+status: paused
 owner: Cameron
 created: 2026-09-18
 updated: 2026-09-18
@@ -89,6 +89,8 @@ Two Twilio tracking numbers (scheduling follow-up emails, Meta ads) forward to t
 - 2026-09-18 — Unknown callers become a lead with a synthetic `phone-<digits>@calls.unfuckyourtaxes.com` email — the leads table and the inbox contact model both key on email; the address is never mailed.
 
 - 2026-09-18 — Twilio blocks number purchase until Trust Hub KYC is approved (error 20003, "Primary compliance profile is not approved"). Parent account has no Primary Customer Profile and no numbers; subaccount `Forti.fi / UFYT` was created but cannot buy numbers yet. Cameron completes the Primary Business Profile (Mathis LLC) and a Secondary Customer Profile (Forti.fi LLC) assigned to the subaccount; then rerun `scripts/provision-twilio.mjs --apply-secrets`.
+
+- 2026-09-18 — ON HOLD (Cameron): texting paused pending business-structure adjustments. Number purchase is gated on the same Trust Hub business identity, so calls wait too. Code stays on the three unmerged branches; nothing deployed, no Twilio spend beyond the empty subaccount. Resume at Phase 3 step 1 once the entity is settled.
 
 ## Definition of Done
 - [ ] A call to either tracking number rings the sales phone with a whisper naming the source and is recorded after the disclosure
