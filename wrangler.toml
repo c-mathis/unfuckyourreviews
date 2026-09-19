@@ -20,7 +20,7 @@ zone_name = "unfuckyourweb.com"
 
 [vars]
 # Flip to "true" to start queueing and sending the UFYT email follow-up sequence.
-UFYT_EMAIL_SEQUENCE_ENABLED = "false"
+UFYT_EMAIL_SEQUENCE_ENABLED = "true"
 UFYT_BOOKING_URL = "https://book.ufyt.dev"
 UFYT_UNSUBSCRIBE_URL = "https://book.ufyt.dev/email/stop"
 UFYT_PHONE = "213-752-5732"
