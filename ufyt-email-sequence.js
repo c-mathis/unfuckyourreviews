@@ -466,7 +466,42 @@ export async function markUfytLeadBooked(env, { leadId, email, startAt, bookingU
     env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'call_booked', ?)`)
       .bind(lead.id, `Booked a call for ${label}${source ? ` via ${source}` : ''}${bookingUrl ? ` (${bookingUrl})` : ''}`),
   ]);
+  await sendUfytBookedAlert(env, lead, { label, bookingUrl, source }).catch(error => console.error('UFYT booked alert error:', error.message));
   return { ok: true, leadId: lead.id, cancelledSteps: cancelled };
+}
+
+const QA_ALERT_EMAIL = 'cameron@axesagency.com';
+const LEAD_DESK_URL = 'https://ufyt-leads-dash.pages.dev';
+
+/** Tell sales a lead booked, from the lead Worker's own Resend key so it works
+ *  even when the booking Worker has no key of its own. QA leads alert only Cameron. */
+async function sendUfytBookedAlert(env, lead, { label, bookingUrl, source }) {
+  const config = getUfytEmailSequenceConfig(env);
+  const recipients = /\bQA TEST\b/i.test(String(lead.name || ''))
+    ? [QA_ALERT_EMAIL]
+    : String(env.UFYT_NOTIFICATION_EMAILS || '').split(',').map(value => value.trim()).filter(Boolean);
+  if (!config.resendApiKey || recipients.length === 0) return null;
+  const name = lead.name || 'Unknown lead';
+  const lines = [
+    `${name} booked a call for ${label}.`,
+    '',
+    `Email: ${lead.email || 'n/a'}`,
+    `Phone: ${lead.phone || 'n/a'}`,
+    `Lead #${lead.id}: ${LEAD_DESK_URL}`,
+    bookingUrl ? `Booking: ${bookingUrl}` : null,
+    source ? `Came from: ${source}` : null,
+    '',
+    'Follow-up emails for this lead have stopped.',
+  ].filter(line => line !== null);
+  const html = `<div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:#111">${lines.map(line => `<p style="margin:0 0 10px">${line ? escapeHtml(line) : '&nbsp;'}</p>`).join('')}</div>`;
+  const headers = { Authorization: `Bearer ${config.resendApiKey}`, 'Content-Type': 'application/json' };
+  const response = await fetch(`${config.resendBase}/emails`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ from: 'Unfuck Your Taxes <leads@unfuckyourtaxes.com>', to: recipients, subject: `Call booked: ${name} (${label})`, text: lines.join('\n'), html }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`Resend ${response.status}: ${payload.message || 'rejected'}`);
+  return payload.id || null;
 }
 
 export async function markUfytLeadBookingCancelled(env, { leadId, email, startAt }) {
