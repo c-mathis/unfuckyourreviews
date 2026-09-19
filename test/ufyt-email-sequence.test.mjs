@@ -5,6 +5,9 @@ import {
   UFYT_EMAIL_SEQUENCE,
   adjustToSendWindow,
   scheduleUfytEmailSequence,
+  buildUfytBookingConfirmation,
+  buildUfytBookingIcs,
+  formatInstant,
   zonedTime,
   buildBookingLink,
   firstNameFor,
@@ -130,4 +133,33 @@ test('emails carry the Trevon signature, the phone, and no brand chrome', () => 
     assert.match(email.html, /Book a meeting/);
     assert.doesNotMatch(email.html, /PICK A TIME|background:#f8f8f4/);
   }
+});
+
+test('booking confirmation comes from Trevon with the invite and the manage link', () => {
+  const config = getUfytEmailSequenceConfig({ UFYT_INTEGRATION_SECRET: 's' });
+  const booking = {
+    id: 'bk_1', name: 'Jordan Lee', email: 'jordan@example.com', phone: '(415) 555-0134',
+    start: new Date('2026-09-21T22:30:00Z'), end: new Date('2026-09-21T23:00:00Z'), timeZone: 'America/New_York',
+    bookingUrl: 'https://book.ufyt.dev/b/tok', source: 'email-1', notes: '',
+  };
+  const rendered = buildUfytBookingConfirmation(config, booking);
+  assert.equal(rendered.subject, 'Your call with Unf*ck Your Taxes: Mon, Sep 21 at 6:30 PM EDT');
+  assert.match(rendered.text, /^Jordan,\n\nYou're booked\. I'll call you at \(415\) 555-0134 on Monday, September 21 at 6:30 PM EDT\./);
+  assert.match(rendered.text, /Open https:\/\/book\.ufyt\.dev\/b\/tok or text me at 213-752-5732/);
+  assert.match(rendered.text, /Trevon Gibson\nChief Tax Unf\*cker/);
+  assert.match(rendered.html, /href="https:\/\/book\.ufyt\.dev\/b\/tok"/);
+  const unfolded = rendered.ics.replaceAll('\r\n ', '');
+  assert.match(unfolded, /BEGIN:VCALENDAR[\s\S]*DTSTART:20260921T223000Z[\s\S]*DTEND:20260921T230000Z[\s\S]*ORGANIZER;CN="Trevon Gibson":mailto:trevon@unfuckyourtaxes\.com[\s\S]*END:VCALENDAR/);
+  assert.match(unfolded, /ATTENDEE;CN="Jordan Lee";ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED:mailto:jordan@example\.com/);
+  assert.ok(rendered.ics.split('\r\n').every(line => new TextEncoder().encode(line).length <= 75), 'ics lines folded to 75 octets');
+});
+
+test('formatInstant renders Pacific and other zones', () => {
+  assert.equal(formatInstant(new Date('2026-09-21T22:30:00Z'), 'America/Los_Angeles').long, 'Monday, September 21 at 3:30 PM PDT');
+  assert.equal(formatInstant(new Date('2026-12-16T17:00:00Z'), 'America/Chicago').time, '11:00 AM');
+});
+
+test('ics builder handles a missing booking id', () => {
+  const ics = buildUfytBookingIcs({ id: null, name: 'A B', email: 'a@b.co', phone: '1', start: new Date('2026-09-21T22:30:00Z'), end: new Date('2026-09-21T23:00:00Z'), bookingUrl: null }, { organizerName: 'Trevon Gibson', organizerEmail: 'trevon@unfuckyourtaxes.com', phone: '213-752-5732' });
+  assert.match(ics, /UID:20260921T223000Z-a@b\.co@unfuckyourtaxes\.com/);
 });
