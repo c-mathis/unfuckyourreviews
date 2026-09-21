@@ -17,7 +17,7 @@
 const SEND_WINDOW = { timeZone: 'America/Los_Angeles', startHour: 8, endHour: 18 };
 const TIME_ZONE = SEND_WINDOW.timeZone;
 
-const SIGNATURE = 'Trevon Gibson\nChief Tax Unf*cker\n213-752-5732\nunfuckyourtaxes.com';
+const SIGNATURE = 'Trevon R\nChief Tax Unf*cker\n213-752-5732\nunfuckyourtaxes.com';
 
 // Which of the quiz's "What's going on" answers this lead picked. Kept for the
 // Lead Desk and preview tooling; the current copy does not branch on it.
@@ -102,7 +102,7 @@ export function getUfytEmailSequenceConfig(env) {
     enabled: String(env.UFYT_EMAIL_SEQUENCE_ENABLED || '').toLowerCase() === 'true',
     resendApiKey: env.UFYT_RESEND_API_KEY || null,
     resendBase: (env.UFYT_RESEND_API_BASE || 'https://api.resend.com').replace(/\/+$/, ''),
-    from: env.UFYT_EMAIL_FROM || 'Trevon Gibson <trevon@unfuckyourtaxes.com>',
+    from: env.UFYT_EMAIL_FROM || 'Trevon R <trevon@unfuckyourtaxes.com>',
     replyTo: env.UFYT_EMAIL_REPLY_TO || 'trevon@unfuckyourtaxes.com',
     bookingUrl: (env.UFYT_BOOKING_URL || 'https://book.ufyt.dev').replace(/\/+$/, ''),
     unsubscribeUrl: (env.UFYT_UNSUBSCRIBE_URL || 'https://book.ufyt.dev/email/stop').replace(/\/+$/, ''),
@@ -581,7 +581,7 @@ export function buildUfytBookingConfirmation(config, booking) {
     subject: `Your call with Unf*ck Your Taxes: ${when.day} at ${when.time} ${when.zone}`,
     text: paragraphs.join('\n\n'),
     html: plainHtml(paragraphs, { [manage]: manage, [googleCalendarUrl(booking)]: googleCalendarUrl(booking), 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' }),
-    ics: buildUfytBookingIcs(booking, { organizerName: 'Trevon Gibson', organizerEmail, phone: config.phone }),
+    ics: buildUfytBookingIcs(booking, { organizerName: 'Trevon R', organizerEmail, phone: config.phone }),
     when,
   };
 }
