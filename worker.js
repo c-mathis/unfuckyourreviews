@@ -2,6 +2,7 @@ import {
   enqueueUfytEmailSequence,
   handleUfytEmailSequenceRequest,
   processUfytEmailSequence,
+  stopUfytEmailSequenceForStatus,
 } from './ufyt-email-sequence.js';
 
 // Cloudflare Worker for Unfuck Your Reviews Lead Capture
@@ -865,6 +866,7 @@ async function handleUpdateLead(request, env, corsHeaders) {
         INSERT INTO activity_log (lead_id, activity_type, description)
         VALUES (?, 'status_change', ?)
       `).bind(id, `Status changed to: ${status}`).run();
+      await stopUfytEmailSequenceForStatus(env, id, status).catch(error => console.error('Stop sequence error:', error.message));
     }
 
     if (notes !== undefined) {

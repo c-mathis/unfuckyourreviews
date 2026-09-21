@@ -408,6 +408,10 @@ async function sendUfytEmailStep(env, config, row) {
       env.DB.prepare(`UPDATE email_sequence SET status = 'sent', email_id = ?, attempts = attempts + 1, updated_at = datetime('now') WHERE id = ?`).bind(result.id, row.id),
       env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'email_sent', ?)`).bind(row.lead_id, `Follow-up email ${row.step} sent: “${rendered.subject}” (${result.id})`),
     ]);
+    // Keep the Lead Desk honest about where the lead is in the sequence.
+    const next = await env.DB.prepare(`SELECT MIN(send_at) AS send_at FROM email_sequence WHERE lead_id = ? AND status = 'pending' AND id != ?`).bind(row.lead_id, row.id).first();
+    await env.DB.prepare(`UPDATE leads SET next_action = ?, next_action_date = ?, updated_at = datetime('now') WHERE id = ? AND status = 'new'`)
+      .bind(describeSequenceProgress(Number(row.step), next?.send_at), next?.send_at ? `${next.send_at.replace(' ', 'T')}Z` : null, row.lead_id).run();
     return { status: 'sent', id: result.id };
   } catch (error) {
     const attempts = Number(row.attempts) + 1;
@@ -433,6 +437,39 @@ async function sendViaResend(config, { to, subject, text, html, unsubscribeUrl, 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.id) throw new Error(`Resend ${response.status}: ${payload.message || 'rejected'}`);
   return payload;
+}
+
+export function describeSequenceProgress(step, nextSendAt) {
+  const total = UFYT_EMAIL_SEQUENCE.length;
+  if (!nextSendAt) return `Email ${step} of ${total} sent · sequence done, no reply yet`;
+  const when = formatInstant(new Date(`${String(nextSendAt).replace(' ', 'T')}Z`), TIME_ZONE);
+  return `Email ${step} of ${total} sent · next email ${when.day}`;
+}
+
+const SALES_OWNED_STATUSES = new Set(['qualified', 'proposal_sent', 'won', 'lost']);
+
+/** Move a lead's status when the system learns something, without overriding sales. */
+async function setLeadStatus(env, lead, status, reason) {
+  if (!lead || lead.status === status || SALES_OWNED_STATUSES.has(lead.status)) return false;
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE leads SET status = ?, contacted_at = COALESCE(contacted_at, CASE WHEN ? IN ('contacted', 'booked') THEN datetime('now') END), updated_at = datetime('now') WHERE id = ?`).bind(status, status, lead.id),
+    env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'status_change', ?)`).bind(lead.id, `Status set to ${status} automatically: ${reason}`),
+  ]);
+  lead.status = status;
+  return true;
+}
+
+/** Sales changed the status by hand; anything other than "new" ends the sequence now. */
+export async function stopUfytEmailSequenceForStatus(env, leadId, status) {
+  if (!status || status === 'new') return 0;
+  const cancelled = await cancelUfytEmailSequence(env, leadId, `status-${status}`);
+  if (cancelled > 0) {
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE leads SET next_action = ?, updated_at = datetime('now') WHERE id = ?`).bind(`Follow-up emails stopped (status set to ${status})`, leadId),
+      env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'email_sequence_stopped', ?)`).bind(leadId, `Follow-up emails stopped: status set to ${status} (${cancelled} pending)`),
+    ]);
+  }
+  return cancelled;
 }
 
 // ---------- Stop signals ----------
@@ -646,6 +683,7 @@ export async function markUfytLeadBooked(env, body) {
   let cancelled = 0;
   if (lead) {
     cancelled = await cancelUfytEmailSequence(env, lead.id, 'booked');
+    await setLeadStatus(env, lead, 'booked', 'lead booked a call');
     await env.DB.batch([
       env.DB.prepare(`
         UPDATE leads SET booked_at = datetime('now'), booking_url = ?, next_action = ?, next_action_date = ?, updated_at = datetime('now') WHERE id = ?
@@ -679,6 +717,7 @@ export async function markUfytLeadBookingCancelled(env, body) {
   const lead = await findLead(env, { leadId: body.leadId, email: body.email });
   const booking = normalizeBooking(body, lead);
   if (lead) {
+    if (lead.status === 'booked') await setLeadStatus(env, lead, 'contacted', 'lead cancelled their call');
     await env.DB.batch([
       env.DB.prepare(`UPDATE leads SET booked_at = NULL, booking_url = NULL, next_action = 'Call cancelled by lead', updated_at = datetime('now') WHERE id = ?`).bind(lead.id),
       env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'call_cancelled', ?)`).bind(lead.id, `Cancelled their booked call${body.startAt ? ` (${body.startAt})` : ''}`),
@@ -692,8 +731,9 @@ export async function markUfytLeadReplied(env, { leadId, type, at }) {
   const lead = await findLead(env, { leadId });
   if (!lead) return { ok: false, reason: 'lead-not-found' };
   const cancelled = await cancelUfytEmailSequence(env, lead.id, type || 'replied');
+  if (lead.status === 'new') await setLeadStatus(env, lead, 'contacted', 'lead replied by email');
   await env.DB.batch([
-    env.DB.prepare(`UPDATE leads SET replied_at = COALESCE(replied_at, ?), updated_at = datetime('now') WHERE id = ?`).bind(at || new Date().toISOString(), lead.id),
+    env.DB.prepare(`UPDATE leads SET replied_at = COALESCE(replied_at, ?), next_action = 'Lead replied by email', updated_at = datetime('now') WHERE id = ?`).bind(at || new Date().toISOString(), lead.id),
     env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'lead_replied', ?)`).bind(lead.id, `Lead replied (${type || 'reply'}); follow-up emails stopped`),
   ]);
   return { ok: true, leadId: lead.id, cancelledSteps: cancelled };

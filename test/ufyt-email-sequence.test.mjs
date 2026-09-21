@@ -8,6 +8,7 @@ import {
   buildUfytBookingConfirmation,
   buildUfytBookingIcs,
   formatInstant,
+  describeSequenceProgress,
   zonedTime,
   buildBookingLink,
   firstNameFor,
@@ -162,4 +163,9 @@ test('formatInstant renders Pacific and other zones', () => {
 test('ics builder handles a missing booking id', () => {
   const ics = buildUfytBookingIcs({ id: null, name: 'A B', email: 'a@b.co', phone: '1', start: new Date('2026-09-21T22:30:00Z'), end: new Date('2026-09-21T23:00:00Z'), bookingUrl: null }, { organizerName: 'Trevon R', organizerEmail: 'trevon@unfuckyourtaxes.com', phone: '213-752-5732' });
   assert.match(ics, /UID:20260921T223000Z-a@b\.co@unfuckyourtaxes\.com/);
+});
+
+test('describeSequenceProgress tells sales where the lead is', () => {
+  assert.equal(describeSequenceProgress(1, '2026-09-23 19:40:00'), 'Email 1 of 4 sent · next email Wed, Sep 23');
+  assert.equal(describeSequenceProgress(4, null), 'Email 4 of 4 sent · sequence done, no reply yet');
 });
