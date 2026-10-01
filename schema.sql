@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS leads (
     email TEXT NOT NULL,
     phone TEXT,
     website TEXT,
+    gbp_url TEXT,
 
     -- Lead Details
     problem TEXT,                      -- What's fucked?
@@ -33,6 +34,8 @@ CREATE TABLE IF NOT EXISTS leads (
     brand TEXT,
     surface TEXT,
     event_id TEXT,
+    dedupe_key TEXT,
+    duplicate_of_id INTEGER REFERENCES leads(id),
     triage_score INTEGER DEFAULT 0,
     payload_json TEXT,
 
@@ -66,6 +69,9 @@ CREATE INDEX IF NOT EXISTS idx_leads_source ON leads(source);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_source_dedupe_key
+  ON leads(source, dedupe_key)
+  WHERE dedupe_key IS NOT NULL;
 
 -- Activity log table for tracking interactions
 CREATE TABLE IF NOT EXISTS activity_log (
@@ -78,6 +84,43 @@ CREATE TABLE IF NOT EXISTS activity_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_lead_id ON activity_log(lead_id);
+
+-- Repeat UFYT submissions are linked to the canonical lead rather than
+-- inflating the unique-lead count or launching another follow-up sequence.
+CREATE TABLE IF NOT EXISTS lead_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id INTEGER NOT NULL,
+    event_id TEXT,
+    submission_type TEXT NOT NULL DEFAULT 'repeat',
+    surface TEXT,
+    name TEXT,
+    email TEXT,
+    phone TEXT,
+    payload_json TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (lead_id) REFERENCES leads(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_lead_submissions_event_id
+  ON lead_submissions(event_id)
+  WHERE event_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_lead_submissions_lead
+  ON lead_submissions(lead_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS repeat_acknowledgements (
+    lead_id INTEGER NOT NULL,
+    acknowledgement_day TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    email_id TEXT,
+    sent_at TEXT,
+    last_error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (lead_id, acknowledgement_day),
+    FOREIGN KEY (lead_id) REFERENCES leads(id)
+);
 
 -- Rate limiting table for form submission spam protection
 CREATE TABLE IF NOT EXISTS rate_limits (
