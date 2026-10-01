@@ -4,6 +4,13 @@ import {
   processUfytEmailSequence,
   stopUfytEmailSequenceForStatus,
 } from './ufyt-email-sequence.js';
+import {
+  buildUfytDedupeKey,
+  findExistingUfytLead,
+  recordUfytRepeatSubmission,
+  reserveUfytRepeatAcknowledgement,
+  sendUfytRepeatAcknowledgement,
+} from './ufyt-duplicates.js';
 
 // Cloudflare Worker for Unfuck Your Reviews Lead Capture
 // Handles form submissions + dashboard API
@@ -184,49 +191,80 @@ export default {
 
       console.log('Lead submission:', { source, eventId: data.event_id || null });
 
-      // Insert into D1 database
-      const result = await env.DB.prepare(`
-        INSERT INTO leads (
-          source, name, email, phone, website, gbp_url, problem,
-          selected_issues, issues_count,
-          utm_source, utm_medium, utm_campaign, utm_content, utm_term,
-          referrer, landing_page,
-          ip_address, user_agent, brand, surface, event_id,
-          triage_score, fbclid, gclid, payload_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        source,
-        data.name,
-        data.email,
-        data.phone || null,
-        data.website || null,
-        data.gbp_url || null,
-        data.problem || data.situation || null,
-        data.selected_issues || null,
-        parseInt(data.issues_count) || 0,
-        data.utm_source || null,
-        data.utm_medium || null,
-        data.utm_campaign || null,
-        data.utm_content || null,
-        data.utm_term || null,
-        data.referrer || referer || null,
-        data.landing_page || null,
-        clientIp,
-        userAgent,
-        data.brand || null,
-        data.surface || null,
-        data.event_id || null,
-        parseInt(data.internal_triage_score) || 0,
-        data.fbclid || null,
-        data.gclid || null,
-        JSON.stringify(data)
-      ).run();
+      // QA submissions intentionally exercise the complete new-lead path. Real
+      // UFYT submissions use a normalized identity key so browser retries and
+      // returning prospects cannot start a second lead or follow-up sequence.
+      const isInternalTest = /\bQA TEST\b/i.test(String(data.name || '')) || data.qa_test === true;
+      const dedupeKey = source === 'taxes' && !isInternalTest
+        ? buildUfytDedupeKey(data)
+        : null;
+
+      if (dedupeKey) {
+        const existingLead = await findExistingUfytLead(env, data);
+        if (existingLead) {
+          return handleUfytRepeatSubmission({
+            env, ctx, corsHeaders, lead: existingLead, data, clientIp, userAgent,
+          });
+        }
+      }
+
+      // Insert into D1. The unique dedupe index also protects against two
+      // submissions arriving between the lookup above and this write.
+      let result;
+      try {
+        result = await env.DB.prepare(`
+          INSERT INTO leads (
+            source, name, email, phone, website, gbp_url, problem,
+            selected_issues, issues_count,
+            utm_source, utm_medium, utm_campaign, utm_content, utm_term,
+            referrer, landing_page,
+            ip_address, user_agent, brand, surface, event_id,
+            dedupe_key, triage_score, fbclid, gclid, payload_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          source,
+          data.name,
+          data.email,
+          data.phone || null,
+          data.website || null,
+          data.gbp_url || null,
+          data.problem || data.situation || null,
+          data.selected_issues || null,
+          parseInt(data.issues_count) || 0,
+          data.utm_source || null,
+          data.utm_medium || null,
+          data.utm_campaign || null,
+          data.utm_content || null,
+          data.utm_term || null,
+          data.referrer || referer || null,
+          data.landing_page || null,
+          clientIp,
+          userAgent,
+          data.brand || null,
+          data.surface || null,
+          data.event_id || null,
+          dedupeKey,
+          parseInt(data.internal_triage_score) || 0,
+          data.fbclid || null,
+          data.gclid || null,
+          JSON.stringify(data)
+        ).run();
+      } catch (error) {
+        if (dedupeKey) {
+          const existingLead = await findExistingUfytLead(env, data);
+          if (existingLead) {
+            return handleUfytRepeatSubmission({
+              env, ctx, corsHeaders, lead: existingLead, data, clientIp, userAgent,
+            });
+          }
+        }
+        throw error;
+      }
 
       console.log('Lead saved:', result.meta.last_row_id);
 
       // Internal QA submissions must never reach ad platforms, the sales
       // inbox, or SMS. They still hit D1 and email so the path can be tested.
-      const isInternalTest = /\bQA TEST\b/i.test(String(data.name || '')) || data.qa_test === true;
       if (isInternalTest) console.log('Internal test submission: skipping Meta CAPI, inbox sync, and SMS');
 
       // Queue the UFYT email follow-up sequence. Steps go out from the cron and
@@ -456,6 +494,8 @@ Jokes aside, you're in good hands.
       return new Response(
         JSON.stringify({
           success: true,
+          duplicate: false,
+          lead_id: result.meta.last_row_id,
           message: 'Lead submitted successfully',
         }),
         {
@@ -470,6 +510,32 @@ Jokes aside, you're in good hands.
     }
   }
 };
+
+async function handleUfytRepeatSubmission({ env, ctx, corsHeaders, lead, data, clientIp, userAgent }) {
+  const outcome = await recordUfytRepeatSubmission(env, { lead, data, clientIp, userAgent });
+  const acknowledgementDay = new Date().toISOString().slice(0, 10);
+  const reserved = await reserveUfytRepeatAcknowledgement(env, lead.id, acknowledgementDay);
+
+  if (reserved) {
+    ctx.waitUntil(
+      sendUfytRepeatAcknowledgement(env, { lead, data, day: acknowledgementDay })
+        .then(result => console.log('UFYT repeat acknowledgement:', JSON.stringify(result)))
+        .catch(error => console.error('UFYT repeat acknowledgement error:', error.message))
+    );
+  }
+
+  console.log('UFYT repeat submission:', {
+    leadId: lead.id,
+    recorded: outcome.recorded,
+    acknowledgementReserved: reserved,
+  });
+  return new Response(JSON.stringify({
+    success: true,
+    duplicate: true,
+    lead_id: lead.id,
+    message: 'We already have your information.',
+  }), { status: 200, headers: corsHeaders });
+}
 
 // Resend answers with 4xx/5xx JSON on rejection; log it so a silently
 // dropped notification is visible in the Worker tail.
@@ -536,12 +602,12 @@ async function handleGetStats(request, env, corsHeaders) {
   try {
     // Total leads
     const totalResult = await env.DB.prepare(
-      'SELECT COUNT(*) as total FROM leads'
+      'SELECT COUNT(*) as total FROM leads WHERE duplicate_of_id IS NULL'
     ).first();
 
     // Leads by source
     const sourceResult = await env.DB.prepare(
-      'SELECT source, COUNT(*) as count FROM leads GROUP BY source'
+      'SELECT source, COUNT(*) as count FROM leads WHERE duplicate_of_id IS NULL GROUP BY source'
     ).all();
 
     // Leads by status
@@ -551,12 +617,12 @@ async function handleGetStats(request, env, corsHeaders) {
 
     // Today's leads
     const todayResult = await env.DB.prepare(
-      "SELECT COUNT(*) as count FROM leads WHERE DATE(created_at) = DATE('now')"
+      "SELECT COUNT(*) as count FROM leads WHERE duplicate_of_id IS NULL AND DATE(created_at) = DATE('now')"
     ).first();
 
     // This week's leads
     const weekResult = await env.DB.prepare(
-      "SELECT COUNT(*) as count FROM leads WHERE created_at >= DATE('now', '-7 days')"
+      "SELECT COUNT(*) as count FROM leads WHERE duplicate_of_id IS NULL AND created_at >= DATE('now', '-7 days')"
     ).first();
 
     return new Response(
@@ -715,7 +781,8 @@ async function handleCommunicationsSync(env, corsHeaders) {
   const result = await env.DB.prepare(`
     SELECT id, source, name, email, phone, problem, status, priority, created_at
     FROM leads
-    WHERE source = 'taxes' OR brand IN ('unfuckyourtaxes', 'ufyt')
+    WHERE (source = 'taxes' OR brand IN ('unfuckyourtaxes', 'ufyt'))
+      AND duplicate_of_id IS NULL
     ORDER BY id
     LIMIT 1000
   `).all();
