@@ -2,6 +2,7 @@ import {
   enqueueUfytEmailSequence,
   handleUfytEmailSequenceRequest,
   processUfytEmailSequence,
+  processBookingMessages,
   stopUfytEmailSequenceForStatus,
 } from './ufyt-email-sequence.js';
 import {
@@ -96,6 +97,8 @@ export default {
   async scheduled(event, env, ctx) {
     const outcome = await processUfytEmailSequence(env);
     console.log('UFYT email sequence run:', JSON.stringify(outcome));
+    const bookings = await processBookingMessages(env).catch(error => ({ error: error.message }));
+    console.log('UFYT booking messages run:', JSON.stringify(bookings));
   },
 
   async fetch(request, env, ctx) {

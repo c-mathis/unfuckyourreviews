@@ -9,6 +9,10 @@ import {
   buildUfytBookingIcs,
   formatInstant,
   describeSequenceProgress,
+  scheduleBookingMessages,
+  buildBookingMessage,
+  makeOutcomeToken,
+  verifyOutcomeToken,
   zonedTime,
   buildBookingLink,
   firstNameFor,
@@ -168,4 +172,48 @@ test('ics builder handles a missing booking id', () => {
 test('describeSequenceProgress tells sales where the lead is', () => {
   assert.equal(describeSequenceProgress(1, '2026-09-23 19:40:00'), 'Email 1 of 4 sent · next email Wed, Sep 23');
   assert.equal(describeSequenceProgress(4, null), 'Email 4 of 4 sent · sequence done, no reply yet');
+});
+
+const sampleBooking = {
+  id: 'bk_42', name: 'David Meade', email: 'david@example.com', phone: '(702) 555-0188', timeZone: 'America/New_York',
+  start: new Date('2026-10-07T17:00:00Z'), end: new Date('2026-10-07T17:30:00Z'), bookingUrl: 'https://book.ufyt.dev/b/tok', source: 'email-1', leadId: 90,
+};
+
+test('booking messages are scheduled around the call and skip reminders that are already past', () => {
+  const full = scheduleBookingMessages(sampleBooking, new Date('2026-10-05T12:00:00Z'));
+  assert.deepEqual(full.map(m => [m.kind, m.sendAt.toISOString()]), [
+    ['lead_24h', '2026-10-06T17:00:00.000Z'],
+    ['lead_1h', '2026-10-07T16:00:00.000Z'],
+    ['sales_15m', '2026-10-07T16:45:00.000Z'],
+    ['sales_outcome', '2026-10-07T17:30:00.000Z'],
+    ['lead_no_show', '2026-10-07T19:30:00.000Z'],
+  ]);
+  const lastMinute = scheduleBookingMessages(sampleBooking, new Date('2026-10-07T16:50:00Z'));
+  assert.deepEqual(lastMinute.map(m => m.kind), ['sales_outcome', 'lead_no_show']);
+});
+
+test('reminder and no-show copy uses the lead zone and carries the approved wording', () => {
+  const config = getUfytEmailSequenceConfig({ UFYT_INTEGRATION_SECRET: 's' });
+  const day = buildBookingMessage(config, 'lead_24h', sampleBooking);
+  assert.equal(day.subject, 'Tomorrow: your call with Unf*ck Your Taxes');
+  assert.match(day.paragraphs[1], /calling you tomorrow, Wed, Oct 7 at 1:00 PM EDT, at \(702\) 555-0188/);
+  assert.ok(!day.paragraphs.join(' ').match(/letters|notices/i), 'no IRS letters line');
+  const hour = buildBookingMessage(config, 'lead_1h', sampleBooking);
+  assert.match(hour.paragraphs[0], /calling you at 1:00 PM EDT\. If you need to reach me first, call or text 213-752-5732/);
+  assert.ok(!hour.paragraphs[0].includes('from 213'), 'does not claim the calling number');
+  const missed = buildBookingMessage(config, 'lead_no_show', sampleBooking);
+  assert.equal(missed.subject, "We didn't connect");
+  assert.match(missed.paragraphs[2], /https:\/\/book\.ufyt\.dev\?lead=90&.*source=email-no-show/);
+  const ping = buildBookingMessage(config, 'sales_15m', sampleBooking, { lead: { id: 90 }, links: { recipients: ['t@x.com'] } });
+  assert.equal(ping.subject, 'Calling David Meade in 15 min (10:00 AM PDT)');
+  const ask = buildBookingMessage(config, 'sales_outcome', sampleBooking, { lead: { id: 90 }, links: { recipients: ['t@x.com'], showed: 'https://w/s', noShow: 'https://w/n' } });
+  assert.match(ask.paragraphs.join('\n'), /Showed: https:\/\/w\/s[\s\S]*No-show: https:\/\/w\/n/);
+});
+
+test('outcome tokens are bound to booking and outcome', async () => {
+  const t = await makeOutcomeToken('secret', 'bk_42', 'showed');
+  assert.equal(await verifyOutcomeToken('secret', 'bk_42', 'showed', t), true);
+  assert.equal(await verifyOutcomeToken('secret', 'bk_42', 'no_show', t), false);
+  assert.equal(await verifyOutcomeToken('secret', 'bk_43', 'showed', t), false);
+  assert.equal(await verifyOutcomeToken('secret', 'bk_42', 'bogus', t), false);
 });

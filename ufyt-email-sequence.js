@@ -108,6 +108,7 @@ export function getUfytEmailSequenceConfig(env) {
     unsubscribeUrl: (env.UFYT_UNSUBSCRIBE_URL || 'https://book.ufyt.dev/email/stop').replace(/\/+$/, ''),
     phone: env.UFYT_PHONE || '213-752-5732',
     secret: env.UFYT_INTEGRATION_SECRET || null,
+    publicBase: env.UFYT_LEAD_WORKER_URL || 'https://unfuck-leads-worker.cameron-07f.workers.dev',
   };
 }
 
@@ -665,12 +666,17 @@ async function sendUfytBookingAlert(env, config, booking, lead, kind) {
   ];
   const text = [`${verb}.`, '', ...rows.map(([label, value]) => `${label}: ${value}`), '', kind === 'booked' && lead ? 'Follow-up emails for this lead have stopped.' : ''].join('\n').trim();
   const html = `<div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;color:#111111;font-size:15px;line-height:1.5"><p style="margin:0 0 12px;font-weight:700">${escapeHtml(verb)}</p><table style="border-collapse:collapse">${rows.map(([label, value]) => `<tr><td style="padding:3px 12px 3px 0;color:#666">${escapeHtml(label)}</td><td style="padding:3px 0">${escapeHtml(value)}</td></tr>`).join('')}</table></div>`;
+  const organizerEmail = (config.from.match(/<([^>]+)>/) || [])[1] || 'trevon@unfuckyourtaxes.com';
+  const attachments = kind === 'booked' && booking.start && booking.end
+    ? [{ filename: 'call-with-unfuck-your-taxes.ics', content: base64Encode(buildUfytBookingIcs(booking, { organizerName: 'Trevon R', organizerEmail, phone: config.phone })), content_type: 'text/calendar; method=REQUEST' }]
+    : undefined;
   return postToResend(config, {
     from: INTERNAL_FROM,
     to: recipients,
     subject: `${verb}: ${booking.name}${when ? `, ${when.day} ${when.time} ${when.zone}` : ''}`,
     text,
     html,
+    ...(attachments ? { attachments } : {}),
   }, booking.id ? `booking-${kind}-alert-${booking.id}` : undefined);
 }
 
@@ -693,6 +699,7 @@ export async function markUfytLeadBooked(env, body) {
     ]);
   }
 
+  const scheduled = await recordBooking(env, booking, lead).catch(error => { console.error('UFYT booking schedule error:', error.message); return { recorded: false }; });
   const [confirmation, alert] = await Promise.allSettled([
     sendUfytBookingConfirmation(config, booking),
     sendUfytBookingAlert(env, config, booking, lead, 'booked'),
@@ -709,6 +716,7 @@ export async function markUfytLeadBooked(env, body) {
     cancelledSteps: cancelled,
     emailed: confirmation.status === 'fulfilled' && Boolean(confirmation.value),
     alerted: alert.status === 'fulfilled' && Boolean(alert.value),
+    reminders: scheduled.recorded,
   };
 }
 
@@ -716,6 +724,10 @@ export async function markUfytLeadBookingCancelled(env, body) {
   const config = getUfytEmailSequenceConfig(env);
   const lead = await findLead(env, { leadId: body.leadId, email: body.email });
   const booking = normalizeBooking(body, lead);
+  if (booking.id) {
+    await env.DB.prepare(`UPDATE lead_bookings SET status = 'cancelled', updated_at = datetime('now') WHERE booking_id = ?`).bind(booking.id).run();
+    await cancelBookingMessages(env, booking.id, 'cancelled');
+  }
   if (lead) {
     if (lead.status === 'booked') await setLeadStatus(env, lead, 'contacted', 'lead cancelled their call');
     await env.DB.batch([
@@ -816,6 +828,12 @@ function jsonResponse(body, status = 200) {
 export async function handleUfytEmailSequenceRequest(request, env, path) {
   if (!path.startsWith('/api/ufyt/')) return null;
   const config = getUfytEmailSequenceConfig(env);
+  if (path === '/api/ufyt/booking/outcome' && request.method === 'GET') {
+    const url = new URL(request.url);
+    const result = await recordBookingOutcome(env, { bookingId: url.searchParams.get('b'), outcome: url.searchParams.get('o'), token: url.searchParams.get('t') })
+      .catch(error => { console.error('UFYT outcome error:', error.message); return { ok: false, reason: error.message }; });
+    return outcomePage(result);
+  }
   if (!isAuthorized(request, config)) return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
   if (request.method !== 'POST' && !(request.method === 'GET' && path === '/api/ufyt/email/preview')) {
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
@@ -840,6 +858,8 @@ export async function handleUfytEmailSequenceRequest(request, env, path) {
       }
       case '/api/ufyt/email/run':
         return jsonResponse({ success: true, ...(await processUfytEmailSequence(env, { limit: Number(body.limit) || 50 })) });
+      case '/api/ufyt/booking/run':
+        return jsonResponse({ success: true, ...(await processBookingMessages(env, { limit: Number(body.limit) || 50 })) });
       case '/api/ufyt/email/preview': {
         if (!body.to || !/^[^@\s]+@[^@\s]+$/.test(body.to)) return jsonResponse({ success: false, error: 'A "to" address is required' }, 400);
         return jsonResponse({ success: true, sent: await sendUfytEmailSequencePreview(env, body) });
@@ -862,4 +882,290 @@ function parsePayload(json) {
 /** SQLite-friendly UTC timestamp matching datetime('now'). */
 export function sqliteDate(date) {
   return date.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// ============================================
+// BOOKING FOLLOW-UPS: reminders, sales pings, no-show recovery
+// ============================================
+// Every booking reported by book.ufyt.dev gets:
+//   lead_24h       24h before   reminder to the lead (their zone)
+//   lead_1h        1h before    short nudge to the lead
+//   sales_15m      15m before   heads-up to sales (Pacific)
+//   sales_outcome  at call end  "Did they show?" with one-click links
+//   lead_no_show   2h after end missed-call email, unless someone said they showed
+//                               or sales already moved the lead past "booked"
+
+const NO_SHOW_GRACE_MINUTES = 120;
+const BOOKING_MESSAGE_KINDS = ['lead_24h', 'lead_1h', 'sales_15m', 'sales_outcome', 'lead_no_show'];
+
+export function scheduleBookingMessages(booking, now = new Date()) {
+  const start = booking.start.getTime();
+  const end = booking.end.getTime();
+  const soonest = now.getTime() + 2 * 60_000;
+  const plan = [
+    ['lead_24h', start - 24 * 3_600_000, true],
+    ['lead_1h', start - 3_600_000, true],
+    ['sales_15m', start - 15 * 60_000, true],
+    ['sales_outcome', end, false],
+    ['lead_no_show', end + NO_SHOW_GRACE_MINUTES * 60_000, false],
+  ];
+  return plan
+    .filter(([, at, skippable]) => !skippable || at >= soonest)
+    .map(([kind, at]) => ({ kind, sendAt: new Date(Math.max(at, now.getTime())) }));
+}
+
+async function recordBooking(env, booking, lead) {
+  if (!booking.id || !booking.start) return { recorded: false };
+  // A fresh booking replaces any earlier live booking for the same lead or address.
+  const previous = await env.DB.prepare(`
+    SELECT booking_id FROM lead_bookings
+    WHERE status = 'confirmed' AND booking_id != ? AND ((lead_id IS NOT NULL AND lead_id = ?) OR (email != '' AND email = ? COLLATE NOCASE))
+  `).bind(booking.id, lead ? lead.id : -1, booking.email || '').all();
+  const statements = [];
+  for (const row of previous.results) {
+    statements.push(env.DB.prepare(`UPDATE lead_bookings SET status = 'superseded', updated_at = datetime('now') WHERE booking_id = ?`).bind(row.booking_id));
+    statements.push(env.DB.prepare(`UPDATE booking_messages SET status = 'cancelled', last_error = 'superseded', updated_at = datetime('now') WHERE booking_id = ? AND status = 'pending'`).bind(row.booking_id));
+  }
+  statements.push(env.DB.prepare(`
+    INSERT INTO lead_bookings (booking_id, lead_id, name, email, phone, time_zone, start_at, end_at, booking_url, source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(booking_id) DO UPDATE SET status = 'confirmed', start_at = excluded.start_at, end_at = excluded.end_at, updated_at = datetime('now')
+  `).bind(booking.id, lead ? lead.id : null, booking.name, booking.email, booking.phone, booking.timeZone, sqliteDate(booking.start), sqliteDate(booking.end), booking.bookingUrl, booking.source));
+  for (const { kind, sendAt } of scheduleBookingMessages(booking)) {
+    statements.push(env.DB.prepare(`INSERT OR IGNORE INTO booking_messages (booking_id, kind, send_at) VALUES (?, ?, ?)`).bind(booking.id, kind, sqliteDate(sendAt)));
+  }
+  await env.DB.batch(statements);
+  return { recorded: true, superseded: previous.results.length };
+}
+
+async function cancelBookingMessages(env, bookingId, reason) {
+  if (!bookingId) return 0;
+  const result = await env.DB.prepare(`UPDATE booking_messages SET status = 'cancelled', last_error = ?, updated_at = datetime('now') WHERE booking_id = ? AND status = 'pending'`).bind(reason, bookingId).run();
+  return result.meta?.changes ?? 0;
+}
+
+// ---------- Outcome links ----------
+
+export async function makeOutcomeToken(secret, bookingId, outcome) {
+  return hmacBase64Url(secret, `outcome:${bookingId}:${outcome}`);
+}
+
+export async function verifyOutcomeToken(secret, bookingId, outcome, token) {
+  if (!secret || !bookingId || !['showed', 'no_show'].includes(outcome)) return false;
+  const expected = await makeOutcomeToken(secret, bookingId, outcome);
+  return timingSafeEqual(expected, String(token || ''));
+}
+
+async function outcomeUrl(config, bookingId, outcome) {
+  const base = (config.publicBase || '').replace(/\/+$/, '');
+  return `${base}/api/ufyt/booking/outcome?b=${encodeURIComponent(bookingId)}&o=${outcome}&t=${await makeOutcomeToken(config.secret, bookingId, outcome)}`;
+}
+
+// ---------- Rendering ----------
+
+function bookingFromRow(row) {
+  return {
+    id: row.booking_id,
+    name: row.name || 'there',
+    email: row.email || '',
+    phone: row.phone || '',
+    timeZone: row.time_zone || TIME_ZONE,
+    start: new Date(`${row.start_at.replace(' ', 'T')}Z`),
+    end: new Date(`${row.end_at.replace(' ', 'T')}Z`),
+    bookingUrl: row.booking_url,
+    source: row.source,
+    leadId: row.lead_id,
+  };
+}
+
+export function buildBookingMessage(config, kind, booking, { lead = null, links = {} } = {}) {
+  const first = String(booking.name || '').trim().split(/\s+/)[0] || 'there';
+  const theirs = formatInstant(booking.start, booking.timeZone);
+  const pacific = formatInstant(booking.start, TIME_ZONE);
+  const manage = booking.bookingUrl || config.bookingUrl;
+  const rebook = buildBookingLink(config, { id: booking.leadId, name: booking.name, email: booking.email, phone: booking.phone }, 'no-show');
+
+  switch (kind) {
+    case 'lead_24h': return {
+      to: [booking.email], from: config.from, replyTo: config.replyTo,
+      subject: 'Tomorrow: your call with Unf*ck Your Taxes',
+      paragraphs: [
+        `Hey ${first},`,
+        `Quick reminder that I'm calling you tomorrow, ${theirs.day} at ${theirs.time} ${theirs.zone}, at ${booking.phone || 'the number you gave me'}.`,
+        `If that time stopped working, move it here: ${manage}`,
+        SIGNATURE,
+      ],
+      links: { [manage]: manage, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
+    };
+    case 'lead_1h': return {
+      to: [booking.email], from: config.from, replyTo: config.replyTo,
+      subject: 'Calling you in an hour',
+      paragraphs: [
+        `${first}, I'll be calling you at ${theirs.time} ${theirs.zone}. If you need to reach me first, call or text ${config.phone}.`,
+        SIGNATURE,
+      ],
+      links: { 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
+    };
+    case 'lead_no_show': return {
+      to: [booking.email], from: config.from, replyTo: config.replyTo,
+      subject: "We didn't connect",
+      paragraphs: [
+        `Hey ${first},`,
+        `I called at ${theirs.time} ${theirs.zone} today and didn't catch you. No big deal, it happens.`,
+        `Grab another time here and I'll call you then: ${rebook}`,
+        `Or call or text me at ${config.phone} whenever works.`,
+        SIGNATURE,
+      ],
+      links: { [rebook]: rebook, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
+    };
+    case 'sales_15m': return {
+      to: links.recipients, from: INTERNAL_FROM,
+      subject: `Calling ${booking.name} in 15 min (${pacific.time} ${pacific.zone})`,
+      paragraphs: [
+        `${booking.name} is expecting a call at ${pacific.time} ${pacific.zone}.`,
+        `Phone: ${booking.phone || 'n/a'}\nEmail: ${booking.email || 'n/a'}\nTheir time zone: ${booking.timeZone}`,
+        lead ? `Lead #${lead.id}: ${LEAD_DESK_URL}` : 'No matching lead record.',
+        booking.bookingUrl ? `Booking page: ${booking.bookingUrl}` : '',
+      ].filter(Boolean),
+      links: { [LEAD_DESK_URL]: LEAD_DESK_URL, ...(booking.bookingUrl ? { [booking.bookingUrl]: booking.bookingUrl } : {}) },
+    };
+    case 'sales_outcome': return {
+      to: links.recipients, from: INTERNAL_FROM,
+      subject: `Did ${booking.name} show? (${pacific.time} ${pacific.zone} call)`,
+      paragraphs: [
+        `Your ${pacific.time} ${pacific.zone} call with ${booking.name} just ended. Click one:`,
+        `Showed: ${links.showed}`,
+        `No-show: ${links.noShow}`,
+        `If nobody clicks within ${NO_SHOW_GRACE_MINUTES / 60} hours and the lead is still marked booked, ${first} gets the missed-call email with a rebook link and moves to no_show. Setting the lead to contacted or qualified in the Lead Desk also counts as showed.`,
+        lead ? `Lead #${lead.id}: ${LEAD_DESK_URL}` : 'No matching lead record.',
+      ],
+      links: { [links.showed]: links.showed, [links.noShow]: links.noShow, [LEAD_DESK_URL]: LEAD_DESK_URL },
+    };
+    default: throw new Error(`Unknown booking message kind ${kind}`);
+  }
+}
+
+// ---------- Processing ----------
+
+export async function processBookingMessages(env, { limit = 50, now = new Date() } = {}) {
+  const config = getUfytEmailSequenceConfig(env);
+  if (!config.resendApiKey) return { processed: 0, skipped: 'no-resend-key' };
+  const due = await env.DB.prepare(`
+    SELECT m.id, m.kind, m.attempts, b.*, l.status AS lead_status, l.name AS lead_name
+    FROM booking_messages m JOIN lead_bookings b ON b.booking_id = m.booking_id
+    LEFT JOIN leads l ON l.id = b.lead_id
+    WHERE m.status = 'pending' AND m.send_at <= ?
+    ORDER BY m.send_at LIMIT ?
+  `).bind(sqliteDate(now), limit).all();
+  const outcome = { processed: due.results.length, sent: 0, skipped: 0, failed: 0 };
+  for (const row of due.results) {
+    const result = await sendBookingMessage(env, config, row).catch(error => ({ status: 'failed', error: error.message }));
+    outcome[result.status === 'sent' ? 'sent' : result.status === 'failed' ? 'failed' : 'skipped'] += 1;
+  }
+  return outcome;
+}
+
+async function sendBookingMessage(env, config, row) {
+  const booking = bookingFromRow(row);
+  const lead = row.lead_id ? { id: row.lead_id, status: row.lead_status, name: row.lead_name } : null;
+  const internal = row.kind.startsWith('sales_');
+
+  let skip = null;
+  if (row.status !== 'confirmed') skip = `booking-${row.status}`;
+  else if (!internal && !booking.email) skip = 'no-email';
+  else if (row.kind === 'lead_no_show') {
+    if (row.outcome) skip = `outcome-${row.outcome}`;
+    else if (lead && lead.status !== 'booked') skip = `lead-${lead.status}`;
+  }
+  if (skip) {
+    await env.DB.prepare(`UPDATE booking_messages SET status = 'skipped', last_error = ?, updated_at = datetime('now') WHERE id = ?`).bind(skip, row.id).run();
+    return { status: 'skipped', reason: skip };
+  }
+
+  const links = internal
+    ? { recipients: internalRecipients(env, booking.name), showed: await outcomeUrl(config, booking.id, 'showed'), noShow: await outcomeUrl(config, booking.id, 'no_show') }
+    : {};
+  if (internal && links.recipients.length === 0) {
+    await env.DB.prepare(`UPDATE booking_messages SET status = 'skipped', last_error = 'no-recipients', updated_at = datetime('now') WHERE id = ?`).bind(row.id).run();
+    return { status: 'skipped', reason: 'no-recipients' };
+  }
+  const message = buildBookingMessage(config, row.kind, booking, { lead, links });
+
+  try {
+    const emailId = await postToResend(config, {
+      from: message.from, to: message.to, reply_to: message.replyTo, subject: message.subject,
+      text: message.paragraphs.join('\n\n'), html: plainHtml(message.paragraphs, message.links),
+    }, `booking-msg-${row.id}`);
+    const statements = [
+      env.DB.prepare(`UPDATE booking_messages SET status = 'sent', email_id = ?, attempts = attempts + 1, updated_at = datetime('now') WHERE id = ?`).bind(emailId, row.id),
+    ];
+    if (lead) statements.push(env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'email_sent', ?)`).bind(lead.id, `${describeBookingMessage(row.kind)} sent: “${message.subject}” (${emailId})`));
+    if (row.kind === 'lead_no_show') {
+      statements.push(env.DB.prepare(`UPDATE lead_bookings SET outcome = 'no_show', outcome_at = datetime('now'), outcome_by = 'auto', updated_at = datetime('now') WHERE booking_id = ? AND outcome IS NULL`).bind(booking.id));
+    }
+    await env.DB.batch(statements);
+    if (row.kind === 'lead_no_show' && lead) await markLeadNoShow(env, lead, 'no reply from sales after the call');
+    return { status: 'sent', id: emailId };
+  } catch (error) {
+    const attempts = Number(row.attempts) + 1;
+    await env.DB.prepare(`UPDATE booking_messages SET status = ?, attempts = ?, last_error = ?, send_at = datetime('now', '+15 minutes'), updated_at = datetime('now') WHERE id = ?`)
+      .bind(attempts >= 3 ? 'failed' : 'pending', attempts, String(error.message).slice(0, 500), row.id).run();
+    return { status: 'failed', error: error.message };
+  }
+}
+
+function describeBookingMessage(kind) {
+  return { lead_24h: 'Call reminder (24h)', lead_1h: 'Call reminder (1h)', sales_15m: 'Sales heads-up', sales_outcome: 'Sales outcome check', lead_no_show: 'Missed-call email' }[kind] || kind;
+}
+
+async function markLeadNoShow(env, lead, reason) {
+  const fresh = await env.DB.prepare(`SELECT id, status FROM leads WHERE id = ?`).bind(lead.id).first();
+  if (!fresh || fresh.status !== 'booked') return false;
+  await setLeadStatus(env, fresh, 'no_show', reason);
+  await env.DB.prepare(`UPDATE leads SET next_action = 'Missed the call · missed-call email sent with rebook link', next_action_date = NULL, booked_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(lead.id).run();
+  return true;
+}
+
+/** One-click outcome from the sales email. Idempotent. */
+export async function recordBookingOutcome(env, { bookingId, outcome, token }) {
+  const config = getUfytEmailSequenceConfig(env);
+  if (!(await verifyOutcomeToken(config.secret, bookingId, outcome, token))) return { ok: false, reason: 'invalid-link' };
+  const row = await env.DB.prepare(`SELECT b.*, l.status AS lead_status, l.name AS lead_name FROM lead_bookings b LEFT JOIN leads l ON l.id = b.lead_id WHERE b.booking_id = ?`).bind(bookingId).first();
+  if (!row) return { ok: false, reason: 'booking-not-found' };
+  if (row.outcome) return { ok: true, outcome: row.outcome, already: true, name: row.name };
+
+  const lead = row.lead_id ? { id: row.lead_id, status: row.lead_status, name: row.lead_name } : null;
+  await env.DB.prepare(`UPDATE lead_bookings SET outcome = ?, outcome_at = datetime('now'), outcome_by = 'link', updated_at = datetime('now') WHERE booking_id = ?`).bind(outcome, bookingId).run();
+  if (lead) await env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'call_outcome', ?)`).bind(lead.id, outcome === 'showed' ? 'Sales marked the call as showed' : 'Sales marked the call as a no-show').run();
+
+  if (outcome === 'showed') {
+    await cancelBookingMessages(env, bookingId, 'showed');
+    if (lead && lead.status === 'booked') {
+      await setLeadStatus(env, lead, 'contacted', 'sales confirmed the call happened');
+      await env.DB.prepare(`UPDATE leads SET next_action = 'Call happened · sales follow-up', updated_at = datetime('now') WHERE id = ?`).bind(lead.id).run();
+    }
+    return { ok: true, outcome, name: row.name };
+  }
+
+  // No-show: send the missed-call email now instead of waiting out the grace period.
+  const pending = await env.DB.prepare(`SELECT id FROM booking_messages WHERE booking_id = ? AND kind = 'lead_no_show' AND status = 'pending'`).bind(bookingId).first();
+  if (pending) await env.DB.prepare(`UPDATE booking_messages SET send_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`).bind(pending.id).run();
+  else await env.DB.prepare(`INSERT OR IGNORE INTO booking_messages (booking_id, kind, send_at) VALUES (?, 'lead_no_show', datetime('now'))`).bind(bookingId).run();
+  await cancelBookingMessages(env, bookingId, 'no-show-marked');
+  await env.DB.prepare(`UPDATE booking_messages SET status = 'pending', last_error = NULL WHERE booking_id = ? AND kind = 'lead_no_show'`).bind(bookingId).run();
+  const sent = await processBookingMessages(env, { limit: 5 });
+  if (lead) await markLeadNoShow(env, lead, 'sales marked the call as a no-show');
+  return { ok: true, outcome, name: row.name, emailed: sent.sent > 0 };
+}
+
+export function outcomePage(result) {
+  const title = !result.ok ? 'That link is not valid.'
+    : result.outcome === 'showed' ? `Got it. ${result.name} showed.`
+    : `Got it. ${result.name} marked as a no-show.`;
+  const detail = !result.ok ? 'Open the Lead Desk to update the lead by hand.'
+    : result.already ? 'This call was already recorded.'
+    : result.outcome === 'showed' ? 'The missed-call email will not go out. The lead is now contacted.'
+    : 'The missed-call email with a rebook link is on its way. The lead is now no_show.';
+  return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>UFYT</title><body style="margin:0;background:#f5f3ed;font:16px/1.5 Inter,system-ui,sans-serif;color:#111722"><div style="max-width:480px;margin:60px auto;padding:28px;background:#fff;border:1px solid #d7d5ce;border-radius:10px"><h1 style="margin:0 0 10px;font-size:22px">${escapeHtml(title)}</h1><p style="margin:0 0 18px;color:#6d7280">${escapeHtml(detail)}</p><a href="${LEAD_DESK_URL}" style="color:#334ee8;font-weight:700">Open the Lead Desk</a></div>`,
+    { status: result.ok ? 200 : 400, headers: { 'Content-Type': 'text/html; charset=UTF-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
 }
