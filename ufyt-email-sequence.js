@@ -898,6 +898,13 @@ export function sqliteDate(date) {
 const NO_SHOW_GRACE_MINUTES = 120;
 const BOOKING_MESSAGE_KINDS = ['lead_24h', 'lead_1h', 'sales_15m', 'sales_outcome', 'lead_no_show'];
 
+/** Lead-facing booking emails only land 8am–6pm in the lead's own zone. */
+export function leadSendTime(date, timeZone) {
+  let zone = timeZone || TIME_ZONE;
+  try { new Intl.DateTimeFormat('en-US', { timeZone: zone }); } catch { zone = TIME_ZONE; }
+  return adjustToSendWindow(date, { ...SEND_WINDOW, timeZone: zone });
+}
+
 export function scheduleBookingMessages(booking, now = new Date()) {
   const start = booking.start.getTime();
   const end = booking.end.getTime();
@@ -911,7 +918,10 @@ export function scheduleBookingMessages(booking, now = new Date()) {
   ];
   return plan
     .filter(([, at, skippable]) => !skippable || at >= soonest)
-    .map(([kind, at]) => ({ kind, sendAt: new Date(Math.max(at, now.getTime())) }));
+    .map(([kind, at]) => {
+      const sendAt = new Date(Math.max(at, now.getTime()));
+      return { kind, sendAt: kind === 'lead_no_show' ? leadSendTime(sendAt, booking.timeZone) : sendAt };
+    });
 }
 
 async function recordBooking(env, booking, lead) {
@@ -1082,6 +1092,13 @@ async function sendBookingMessage(env, config, row) {
     return { status: 'skipped', reason: skip };
   }
 
+  if (!internal) {
+    const windowed = leadSendTime(new Date(), booking.timeZone);
+    if (windowed.getTime() > Date.now() + 60_000) {
+      await env.DB.prepare(`UPDATE booking_messages SET send_at = ?, updated_at = datetime('now') WHERE id = ?`).bind(sqliteDate(windowed), row.id).run();
+      return { status: 'skipped', reason: 'deferred-to-business-hours' };
+    }
+  }
   const links = internal
     ? { recipients: internalRecipients(env, booking.name), showed: await outcomeUrl(config, booking.id, 'showed'), noShow: await outcomeUrl(config, booking.id, 'no_show') }
     : {};
@@ -1148,14 +1165,13 @@ export async function recordBookingOutcome(env, { bookingId, outcome, token }) {
   }
 
   // No-show: send the missed-call email now instead of waiting out the grace period.
-  const pending = await env.DB.prepare(`SELECT id FROM booking_messages WHERE booking_id = ? AND kind = 'lead_no_show' AND status = 'pending'`).bind(bookingId).first();
-  if (pending) await env.DB.prepare(`UPDATE booking_messages SET send_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`).bind(pending.id).run();
-  else await env.DB.prepare(`INSERT OR IGNORE INTO booking_messages (booking_id, kind, send_at) VALUES (?, 'lead_no_show', datetime('now'))`).bind(bookingId).run();
+  // Queue the missed-call email for the next business-hours slot in the lead's zone; the cron sends it.
+  const sendAt = sqliteDate(leadSendTime(new Date(), row.time_zone));
   await cancelBookingMessages(env, bookingId, 'no-show-marked');
-  await env.DB.prepare(`UPDATE booking_messages SET status = 'pending', last_error = NULL WHERE booking_id = ? AND kind = 'lead_no_show'`).bind(bookingId).run();
-  const sent = await processBookingMessages(env, { limit: 5 });
+  await env.DB.prepare(`INSERT INTO booking_messages (booking_id, kind, send_at) VALUES (?, 'lead_no_show', ?)
+    ON CONFLICT(booking_id, kind) DO UPDATE SET status = 'pending', last_error = NULL, send_at = excluded.send_at, updated_at = datetime('now')`).bind(bookingId, sendAt).run();
   if (lead) await markLeadNoShow(env, lead, 'sales marked the call as a no-show');
-  return { ok: true, outcome, name: row.name, emailed: sent.sent > 0 };
+  return { ok: true, outcome, name: row.name, emailAt: sendAt };
 }
 
 export function outcomePage(result) {
@@ -1165,7 +1181,7 @@ export function outcomePage(result) {
   const detail = !result.ok ? 'Open the Lead Desk to update the lead by hand.'
     : result.already ? 'This call was already recorded.'
     : result.outcome === 'showed' ? 'The missed-call email will not go out. The lead is now contacted.'
-    : 'The missed-call email with a rebook link is on its way. The lead is now no_show.';
+    : 'The missed-call email with a rebook link goes out in the next business-hours slot. The lead is now no_show.';
   return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>UFYT</title><body style="margin:0;background:#f5f3ed;font:16px/1.5 Inter,system-ui,sans-serif;color:#111722"><div style="max-width:480px;margin:60px auto;padding:28px;background:#fff;border:1px solid #d7d5ce;border-radius:10px"><h1 style="margin:0 0 10px;font-size:22px">${escapeHtml(title)}</h1><p style="margin:0 0 18px;color:#6d7280">${escapeHtml(detail)}</p><a href="${LEAD_DESK_URL}" style="color:#334ee8;font-weight:700">Open the Lead Desk</a></div>`,
     { status: result.ok ? 200 : 400, headers: { 'Content-Type': 'text/html; charset=UTF-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } });
 }
