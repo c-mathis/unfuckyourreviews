@@ -1,3 +1,10 @@
+import {
+  enqueueUfytAttended,
+  enqueueUfytPurchase,
+  enqueueUfytSchedule,
+  processUfytMetaEvents,
+} from './ufyt-meta-events.js';
+
 // ============================================
 // UFYT EMAIL FOLLOW-UP SEQUENCE
 // ============================================
@@ -700,6 +707,15 @@ export async function markUfytLeadBooked(env, body) {
   }
 
   const scheduled = await recordBooking(env, booking, lead).catch(error => { console.error('UFYT booking schedule error:', error.message); return { recorded: false }; });
+  if (scheduled.recorded && booking.id) {
+    await enqueueUfytSchedule(env, {
+      bookingId: booking.id,
+      leadId: lead?.id,
+      email: booking.email,
+      name: booking.name,
+      phone: booking.phone,
+    }).catch(error => console.error('UFYT Schedule event queue error:', error.message));
+  }
   const [confirmation, alert] = await Promise.allSettled([
     sendUfytBookingConfirmation(config, booking),
     sendUfytBookingAlert(env, config, booking, lead, 'booked'),
@@ -834,6 +850,19 @@ export async function handleUfytEmailSequenceRequest(request, env, path) {
       .catch(error => { console.error('UFYT outcome error:', error.message); return { ok: false, reason: error.message }; });
     return outcomePage(result);
   }
+  if (path === '/api/ufyt/meta/purchase' && request.method === 'POST') {
+    const bearer = request.headers.get('Authorization') || '';
+    if (!env.UFYT_PAYMENT_EVENTS_SECRET || bearer !== `Bearer ${env.UFYT_PAYMENT_EVENTS_SECRET}`) {
+      return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+    }
+    try {
+      const body = await request.json();
+      return jsonResponse({ success: true, ...(await enqueueUfytPurchase(env, body)) }, 202);
+    } catch (error) {
+      console.error('UFYT purchase event queue error:', error.message);
+      return jsonResponse({ success: false, error: 'Invalid purchase event' }, 400);
+    }
+  }
   if (!isAuthorized(request, config)) return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
   if (request.method !== 'POST' && !(request.method === 'GET' && path === '/api/ufyt/email/preview')) {
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
@@ -860,6 +889,8 @@ export async function handleUfytEmailSequenceRequest(request, env, path) {
         return jsonResponse({ success: true, ...(await processUfytEmailSequence(env, { limit: Number(body.limit) || 50 })) });
       case '/api/ufyt/booking/run':
         return jsonResponse({ success: true, ...(await processBookingMessages(env, { limit: Number(body.limit) || 50 })) });
+      case '/api/ufyt/meta/run':
+        return jsonResponse({ success: true, ...(await processUfytMetaEvents(env, { limit: Number(body.limit) || 25 })) });
       case '/api/ufyt/email/preview': {
         if (!body.to || !/^[^@\s]+@[^@\s]+$/.test(body.to)) return jsonResponse({ success: false, error: 'A "to" address is required' }, 400);
         return jsonResponse({ success: true, sent: await sendUfytEmailSequencePreview(env, body) });
@@ -1161,6 +1192,13 @@ export async function recordBookingOutcome(env, { bookingId, outcome, token }) {
       await setLeadStatus(env, lead, 'contacted', 'sales confirmed the call happened');
       await env.DB.prepare(`UPDATE leads SET next_action = 'Call happened · sales follow-up', updated_at = datetime('now') WHERE id = ?`).bind(lead.id).run();
     }
+    await enqueueUfytAttended(env, {
+      bookingId,
+      leadId: lead?.id,
+      email: row.email,
+      name: row.name,
+      phone: row.phone,
+    }).catch(error => console.error('UFYT attended event queue error:', error.message));
     return { ok: true, outcome, name: row.name };
   }
 

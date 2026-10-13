@@ -5,6 +5,7 @@ import {
   processBookingMessages,
   stopUfytEmailSequenceForStatus,
 } from './ufyt-email-sequence.js';
+import { processUfytMetaEvents } from './ufyt-meta-events.js';
 import {
   buildUfytDedupeKey,
   findExistingUfytLead,
@@ -99,6 +100,8 @@ export default {
     console.log('UFYT email sequence run:', JSON.stringify(outcome));
     const bookings = await processBookingMessages(env).catch(error => ({ error: error.message }));
     console.log('UFYT booking messages run:', JSON.stringify(bookings));
+    const metaEvents = await processUfytMetaEvents(env).catch(error => ({ error: error.message }));
+    console.log('UFYT Meta events run:', JSON.stringify(metaEvents));
   },
 
   async fetch(request, env, ctx) {
