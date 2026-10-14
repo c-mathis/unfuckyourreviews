@@ -60,3 +60,24 @@ export function canSendMetaEvent(source, data = {}) {
   if (!['web', 'reviews', 'ads', 'taxes', 'cmd'].includes(source)) return false;
   return source !== 'cmd' || data.marketing_consent === true;
 }
+
+function emailList(value) {
+  return String(value || '')
+    .split(',')
+    .map(email => email.trim())
+    .filter(Boolean);
+}
+
+export function getNotificationEmails(source, env = {}) {
+  if (source === 'taxes') {
+    const recipients = emailList(env.UFYT_NOTIFICATION_EMAILS);
+    if (recipients.length) return recipients;
+  }
+
+  if (source === 'cmd') {
+    const recipients = emailList(env.CMD_NOTIFICATION_EMAILS);
+    if (recipients.length) return recipients;
+  }
+
+  return ['cameron@axesagency.com'];
+}

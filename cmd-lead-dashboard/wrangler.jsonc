@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "cmd-leads-dash",
+  "pages_build_output_dir": "./pages-dist",
+  "compatibility_date": "2026-10-13",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "unfuck-leads",
+      "database_id": "20ec98a7-8f00-48ed-938a-bc1c4946bf40"
+    }
+  ]
+}

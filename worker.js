@@ -12,7 +12,7 @@ import {
   reserveUfytRepeatAcknowledgement,
   sendUfytRepeatAcknowledgement,
 } from './ufyt-duplicates.js';
-import { canSendMetaEvent, getMetaConfig, resolveLeadSource } from './lead-config.js';
+import { canSendMetaEvent, getMetaConfig, getNotificationEmails, resolveLeadSource } from './lead-config.js';
 
 // Cloudflare Worker for Unfuck Your Reviews Lead Capture
 // Handles form submissions + dashboard API
@@ -438,9 +438,7 @@ Jokes aside, you're in good hands.
 
         const brand = brandConfig[source] || brandConfig.reviews;
 
-        const notificationEmails = source === 'taxes' && env.UFYT_NOTIFICATION_EMAILS
-          ? env.UFYT_NOTIFICATION_EMAILS.split(',').map(email => email.trim()).filter(Boolean)
-          : ['cameron@axesagency.com'];
+        const notificationEmails = getNotificationEmails(source, env);
 
         const internalNotificationHtml = source === 'taxes'
           ? buildUfytSalesNotification(data, result.meta.last_row_id)
@@ -455,6 +453,7 @@ Jokes aside, you're in good hands.
                 <p><strong>Campaign:</strong> ${escapeHtml(data.utm_campaign || 'Direct / unknown')}</p>
                 <p><strong>Source:</strong> ${escapeHtml(source)}</p>
                 <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
+                ${source === 'cmd' ? '<p><a href="https://cmd-leads-dash.pages.dev/">Open the CMD Lead Desk</a></p>' : ''}
               `;
 
         // Internal notification
