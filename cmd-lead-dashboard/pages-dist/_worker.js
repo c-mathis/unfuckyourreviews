@@ -1,6 +1,4 @@
 const STATUSES = ['new', 'contacted', 'qualified', 'proposal_sent', 'won', 'lost'];
-const SESSION_COOKIE = '__Host-cmd_dashboard';
-const SESSION_SECONDS = 60 * 60 * 24 * 365;
 
 const SECURITY_HEADERS = {
   'Cache-Control': 'no-store',
@@ -14,17 +12,6 @@ const SECURITY_HEADERS = {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-
-    if (url.pathname.startsWith('/access/') && request.method === 'GET') {
-      return createPrivateLinkSession(decodeURIComponent(url.pathname.slice('/access/'.length)), env);
-    }
-
-    if (url.pathname === '/logout' && request.method === 'POST') return clearSession();
-
-    const isApi = url.pathname.startsWith('/api/');
-    if (!(await hasDashboardSession(request, env))) {
-      return isApi ? json({ ok: false, error: 'Unauthorized' }, 401) : notFound();
-    }
 
     if (url.pathname === '/' && request.method === 'GET') return dashboardPage();
     if (url.pathname === '/dashboard.css' && request.method === 'GET') return asset(DASHBOARD_CSS, 'text/css; charset=UTF-8');
@@ -50,63 +37,6 @@ function json(data, status = 200, extraHeaders = {}) {
 
 function notFound() {
   return new Response('Not found', { status: 404, headers: SECURITY_HEADERS });
-}
-
-function cookieValue(request, name) {
-  const cookies = request.headers.get('Cookie') || '';
-  for (const cookie of cookies.split(';')) {
-    const [key, ...parts] = cookie.trim().split('=');
-    if (key === name) return decodeURIComponent(parts.join('='));
-  }
-  return '';
-}
-
-export async function sha256(value) {
-  const input = new TextEncoder().encode(String(value));
-  const buffer = await crypto.subtle.digest('SHA-256', input);
-  return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function fixedLengthEqual(left, right) {
-  if (left.length !== right.length) return false;
-  let difference = 0;
-  for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
-  return difference === 0;
-}
-
-async function expectedSession(env) {
-  return sha256(`cmd-dashboard-session:${env.DASHBOARD_LINK_TOKEN}`);
-}
-
-export async function hasDashboardSession(request, env) {
-  if (!env.DASHBOARD_LINK_TOKEN) return false;
-  const provided = cookieValue(request, SESSION_COOKIE);
-  if (!provided) return false;
-  return fixedLengthEqual(provided, await expectedSession(env));
-}
-
-export async function createPrivateLinkSession(providedToken, env) {
-  if (!env.DASHBOARD_LINK_TOKEN) return notFound();
-  const [providedHash, expectedHash] = await Promise.all([
-    sha256(providedToken),
-    sha256(env.DASHBOARD_LINK_TOKEN),
-  ]);
-  if (!fixedLengthEqual(providedHash, expectedHash)) return notFound();
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      ...SECURITY_HEADERS,
-      Location: '/',
-      'Set-Cookie': `${SESSION_COOKIE}=${encodeURIComponent(await expectedSession(env))}; Path=/; Max-Age=${SESSION_SECONDS}; HttpOnly; Secure; SameSite=Strict`,
-    },
-  });
-}
-
-function clearSession() {
-  return json({ ok: true }, 200, {
-    'Set-Cookie': `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
-  });
 }
 
 export function dashboardPage() {
@@ -178,7 +108,7 @@ const DASHBOARD_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>CMD Lead Desk</title><link rel="stylesheet" href="/dashboard.css"></head>
 <body><div class="shell">
-  <header class="topbar"><div class="brand"><span class="mark">CMD</span><div><strong>C. Mathis Digital</strong><small>Private lead operations</small></div></div><button id="logout" class="quiet">Sign out</button></header>
+  <header class="topbar"><div class="brand"><span class="mark">CMD</span><div><strong>C. Mathis Digital</strong><small>Lead operations</small></div></div></header>
   <main>
     <section class="heading"><div><p class="eyebrow">Lead operations</p><h1>CMD Lead Desk</h1><p>Website inquiries and campaign leads, newest first.</p></div><div class="actions"><button id="refresh">Refresh</button><button id="csv" class="primary">Download CSV</button></div></section>
     <section class="stats" aria-label="Lead totals"><article><b id="total">—</b><span>Total leads</span></article><article><b id="today">—</b><span>Today</span></article><article><b id="open">—</b><span>Open</span></article></section>
@@ -212,5 +142,5 @@ async function load(){const[leadResponse,statsResponse]=await Promise.all([fetch
 document.addEventListener('click',async event=>{if(event.target.matches('.save')){const row=event.target.closest('tr');event.target.disabled=true;const response=await fetch('/api/leads/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:Number(event.target.dataset.id),status:row.querySelector('.status').value,notes:row.querySelector('.notes').value})});event.target.disabled=false;flash(response.ok?'Saved':'Save failed');if(response.ok)await load()}});
 function downloadCsv(items){const columns=['submitted','name','email','phone','website','problem','surface','campaign','landing_page','status','sales_notes'];const quote=value=>'"'+String(value??'').replace(/"/g,'""')+'"';const records=items.map(lead=>[lead.created_at,lead.name,lead.email,lead.phone,lead.website,issue(lead),lead.surface,campaign(lead),lead.landing_page,lead.status,lead.notes]);const csv=[columns.join(','),...records.map(row=>row.map(quote).join(','))].join('\\n');const anchor=document.createElement('a');anchor.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));anchor.download='cmd-leads-'+new Date().toISOString().slice(0,10)+'.csv';anchor.click();URL.revokeObjectURL(anchor.href)}
 function flash(message){const element=document.querySelector('#flash');element.textContent=message;element.style.display='block';setTimeout(()=>element.style.display='none',1800)}
-document.querySelector('#search').addEventListener('input',render);document.querySelector('#status-filter').innerHTML+='<option>'+statuses.join('</option><option>')+'</option>';document.querySelector('#status-filter').addEventListener('change',render);document.querySelector('#refresh').addEventListener('click',load);document.querySelector('#logout').addEventListener('click',async()=>{await fetch('/logout',{method:'POST'});location.reload()});load().catch(error=>{document.querySelector('#empty').hidden=false;document.querySelector('#empty').textContent=error.message});
+document.querySelector('#search').addEventListener('input',render);document.querySelector('#status-filter').innerHTML+='<option>'+statuses.join('</option><option>')+'</option>';document.querySelector('#status-filter').addEventListener('change',render);document.querySelector('#refresh').addEventListener('click',load);load().catch(error=>{document.querySelector('#empty').hidden=false;document.querySelector('#empty').textContent=error.message});
 `;

@@ -2,43 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  createPrivateLinkSession,
   dashboardPage,
-  hasDashboardSession,
   listLeads,
   updateLead,
 } from '../pages-dist/_worker.js';
 
-const env = { DASHBOARD_LINK_TOKEN: 'dashboard-test-secret' };
-
-test('exchanges the private-link token for a derived secure session', async () => {
-  const response = await createPrivateLinkSession('dashboard-test-secret', env);
-  assert.equal(response.status, 302);
-  assert.equal(response.headers.get('Location'), '/');
-  const cookie = response.headers.get('Set-Cookie') || '';
-  assert.match(cookie, /HttpOnly/);
-  assert.match(cookie, /Secure/);
-  assert.match(cookie, /SameSite=Strict/);
-  assert.doesNotMatch(cookie, /dashboard-test-secret/);
-
-  const authenticated = await hasDashboardSession(
-    new Request('https://cmd-leads-dash.pages.dev/', { headers: { Cookie: cookie.split(';')[0] } }),
-    env,
-  );
-  assert.equal(authenticated, true);
-});
-
-test('rejects an incorrect private-link token without setting a cookie', async () => {
-  const response = await createPrivateLinkSession('wrong', env);
-  assert.equal(response.status, 404);
-  assert.equal(response.headers.get('Set-Cookie'), null);
-});
-
-test('renders a no-store, noindex CMD lead desk', async () => {
+test('renders the flat no-store, noindex CMD lead desk', async () => {
   const response = dashboardPage();
   const html = await response.text();
   assert.match(html, /CMD Lead Desk/);
   assert.match(html, /Website inquiries and campaign leads/);
+  assert.doesNotMatch(html, /Sign out/);
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.match(response.headers.get('X-Robots-Tag') || '', /noindex/);
 });
