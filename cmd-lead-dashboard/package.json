@@ -1,0 +1,9 @@
+{
+  "name": "cmd-lead-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "deploy": "wrangler pages deploy pages-dist --project-name cmd-leads-dash --branch main"
+  }
+}
