@@ -187,10 +187,11 @@ test('booking messages are scheduled around the call and skip reminders that are
     ['lead_1h', '2026-10-07T16:00:00.000Z'],
     ['sales_15m', '2026-10-07T16:45:00.000Z'],
     ['sales_outcome', '2026-10-07T17:30:00.000Z'],
-    ['lead_no_show', '2026-10-07T19:30:00.000Z'], // 3:30pm EDT, inside the window
+    ['assume_showed', '2026-10-07T19:30:00.000Z'],
   ]);
+  assert.ok(!full.some(m => m.kind === 'lead_no_show'), 'the missed-call email is never scheduled automatically');
   const lastMinute = scheduleBookingMessages(sampleBooking, new Date('2026-10-07T16:50:00Z'));
-  assert.deepEqual(lastMinute.map(m => m.kind), ['sales_outcome', 'lead_no_show']);
+  assert.deepEqual(lastMinute.map(m => m.kind), ['sales_outcome', 'assume_showed']);
 });
 
 test('reminder and no-show copy uses the lead zone and carries the approved wording', () => {
@@ -209,6 +210,8 @@ test('reminder and no-show copy uses the lead zone and carries the approved word
   assert.equal(ping.subject, 'Calling David Meade in 15 min (10:00 AM PDT)');
   const ask = buildBookingMessage(config, 'sales_outcome', sampleBooking, { lead: { id: 90 }, links: { recipients: ['t@x.com'], showed: 'https://w/s', noShow: 'https://w/n' } });
   assert.match(ask.paragraphs.join('\n'), /Showed: https:\/\/w\/s[\s\S]*No-show: https:\/\/w\/n/);
+  assert.match(ask.paragraphs.join('\n'), /we assume David showed.*moves to contacted and nothing is emailed/);
+  assert.ok(!ask.paragraphs.join(' ').includes('moves to no_show'), 'no automatic no-show language');
 });
 
 test('outcome tokens are bound to booking and outcome', async () => {
@@ -220,10 +223,7 @@ test('outcome tokens are bound to booking and outcome', async () => {
 });
 
 test('missed-call email is pushed to business hours in the lead zone', () => {
-  // Call ends 10pm PDT; grace period would land at midnight -> next morning 8am PDT
-  const late = { ...sampleBooking, timeZone: 'America/Los_Angeles', start: new Date('2026-10-06T04:30:00Z'), end: new Date('2026-10-06T05:00:00Z') };
-  const noShow = scheduleBookingMessages(late, new Date('2026-10-05T12:00:00Z')).find(m => m.kind === 'lead_no_show');
-  assert.equal(noShow.sendAt.toISOString(), '2026-10-06T15:00:00.000Z');
+  // Call ends 10pm PDT; a no-show click at that hour queues the email for 8am PDT
   assert.equal(leadSendTime(new Date('2026-10-06T05:31:00Z'), 'America/Los_Angeles').toISOString(), '2026-10-06T15:00:00.000Z');
   assert.equal(leadSendTime(new Date('2026-10-06T17:00:00Z'), 'America/New_York').toISOString(), '2026-10-06T17:00:00.000Z');
 });
