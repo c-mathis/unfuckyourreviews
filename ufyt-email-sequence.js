@@ -892,11 +892,15 @@ export function sqliteDate(date) {
 //   lead_1h        1h before    short nudge to the lead
 //   sales_15m      15m before   heads-up to sales (Pacific)
 //   sales_outcome  at call end  "Did they show?" with one-click links
-//   lead_no_show   2h after end missed-call email, unless someone said they showed
-//                               or sales already moved the lead past "booked"
+//   assume_showed  2h after end no email: if nobody answered the check, the call
+//                               is treated as showed and the lead moves to contacted
+//   lead_no_show   only when sales clicks No-show (or sets no_show by hand):
+//                               missed-call email with a rebook link
+// Silence never produces a missed-call email. Leads were getting "we didn't
+// connect" after calls that happened because sales was away from the inbox.
 
-const NO_SHOW_GRACE_MINUTES = 120;
-const BOOKING_MESSAGE_KINDS = ['lead_24h', 'lead_1h', 'sales_15m', 'sales_outcome', 'lead_no_show'];
+const OUTCOME_GRACE_MINUTES = 120;
+const BOOKING_MESSAGE_KINDS = ['lead_24h', 'lead_1h', 'sales_15m', 'sales_outcome', 'assume_showed', 'lead_no_show'];
 
 /** Lead-facing booking emails only land 8am–6pm in the lead's own zone. */
 export function leadSendTime(date, timeZone) {
@@ -914,14 +918,11 @@ export function scheduleBookingMessages(booking, now = new Date()) {
     ['lead_1h', start - 3_600_000, true],
     ['sales_15m', start - 15 * 60_000, true],
     ['sales_outcome', end, false],
-    ['lead_no_show', end + NO_SHOW_GRACE_MINUTES * 60_000, false],
+    ['assume_showed', end + OUTCOME_GRACE_MINUTES * 60_000, false],
   ];
   return plan
     .filter(([, at, skippable]) => !skippable || at >= soonest)
-    .map(([kind, at]) => {
-      const sendAt = new Date(Math.max(at, now.getTime()));
-      return { kind, sendAt: kind === 'lead_no_show' ? leadSendTime(sendAt, booking.timeZone) : sendAt };
-    });
+    .map(([kind, at]) => ({ kind, sendAt: new Date(Math.max(at, now.getTime())) }));
 }
 
 async function recordBooking(env, booking, lead) {
@@ -1046,7 +1047,7 @@ export function buildBookingMessage(config, kind, booking, { lead = null, links 
         `Your ${pacific.time} ${pacific.zone} call with ${booking.name} just ended. Click one:`,
         `Showed: ${links.showed}`,
         `No-show: ${links.noShow}`,
-        `If nobody clicks within ${NO_SHOW_GRACE_MINUTES / 60} hours and the lead is still marked booked, ${first} gets the missed-call email with a rebook link and moves to no_show. Setting the lead to contacted or qualified in the Lead Desk also counts as showed.`,
+        `If nobody clicks, we assume ${first} showed: after ${OUTCOME_GRACE_MINUTES / 60} hours the lead moves to contacted and nothing is emailed. Only clicking No-show (now or later) sends ${first} the missed-call email with a rebook link.`,
         lead ? `Lead #${lead.id}: ${LEAD_DESK_URL}` : 'No matching lead record.',
       ],
       links: { [links.showed]: links.showed, [links.noShow]: links.noShow, [LEAD_DESK_URL]: LEAD_DESK_URL },
@@ -1082,14 +1083,24 @@ async function sendBookingMessage(env, config, row) {
 
   let skip = null;
   if (row.status !== 'confirmed') skip = `booking-${row.status}`;
-  else if (!internal && !booking.email) skip = 'no-email';
-  else if (row.kind === 'lead_no_show') {
+  else if (row.kind === 'assume_showed') {
     if (row.outcome) skip = `outcome-${row.outcome}`;
     else if (lead && lead.status !== 'booked') skip = `lead-${lead.status}`;
+  } else if (!internal && !booking.email) skip = 'no-email';
+  else if (row.kind === 'lead_no_show') {
+    // Only an explicit no-show (link or Lead Desk) queues this; a later "showed" cancels it.
+    if (row.outcome === 'showed') skip = 'outcome-showed';
+    else if (lead && !['booked', 'no_show'].includes(lead.status)) skip = `lead-${lead.status}`;
   }
   if (skip) {
     await env.DB.prepare(`UPDATE booking_messages SET status = 'skipped', last_error = ?, updated_at = datetime('now') WHERE id = ?`).bind(skip, row.id).run();
     return { status: 'skipped', reason: skip };
+  }
+
+  if (row.kind === 'assume_showed') {
+    await assumeShowed(env, booking, lead);
+    await env.DB.prepare(`UPDATE booking_messages SET status = 'sent', last_error = 'assumed-showed', updated_at = datetime('now') WHERE id = ?`).bind(row.id).run();
+    return { status: 'sent', assumed: true };
   }
 
   if (!internal) {
@@ -1117,11 +1128,7 @@ async function sendBookingMessage(env, config, row) {
       env.DB.prepare(`UPDATE booking_messages SET status = 'sent', email_id = ?, attempts = attempts + 1, updated_at = datetime('now') WHERE id = ?`).bind(emailId, row.id),
     ];
     if (lead) statements.push(env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'email_sent', ?)`).bind(lead.id, `${describeBookingMessage(row.kind)} sent: “${message.subject}” (${emailId})`));
-    if (row.kind === 'lead_no_show') {
-      statements.push(env.DB.prepare(`UPDATE lead_bookings SET outcome = 'no_show', outcome_at = datetime('now'), outcome_by = 'auto', updated_at = datetime('now') WHERE booking_id = ? AND outcome IS NULL`).bind(booking.id));
-    }
     await env.DB.batch(statements);
-    if (row.kind === 'lead_no_show' && lead) await markLeadNoShow(env, lead, 'no reply from sales after the call');
     return { status: 'sent', id: emailId };
   } catch (error) {
     const attempts = Number(row.attempts) + 1;
@@ -1132,12 +1139,26 @@ async function sendBookingMessage(env, config, row) {
 }
 
 function describeBookingMessage(kind) {
-  return { lead_24h: 'Call reminder (24h)', lead_1h: 'Call reminder (1h)', sales_15m: 'Sales heads-up', sales_outcome: 'Sales outcome check', lead_no_show: 'Missed-call email' }[kind] || kind;
+  return { lead_24h: 'Call reminder (24h)', lead_1h: 'Call reminder (1h)', sales_15m: 'Sales heads-up', sales_outcome: 'Sales outcome check', assume_showed: 'Assumed showed', lead_no_show: 'Missed-call email' }[kind] || kind;
+}
+
+/** Nobody answered the outcome check: treat the call as showed. Sales can still click No-show later. */
+export async function assumeShowed(env, booking, lead) {
+  await env.DB.prepare(`UPDATE lead_bookings SET outcome = 'showed', outcome_at = datetime('now'), outcome_by = 'assumed', updated_at = datetime('now') WHERE booking_id = ? AND outcome IS NULL`).bind(booking.id).run();
+  if (!lead) return;
+  const fresh = await env.DB.prepare(`SELECT id, status FROM leads WHERE id = ?`).bind(lead.id).first();
+  if (!fresh || fresh.status !== 'booked') return;
+  await setLeadStatus(env, fresh, 'contacted', 'call ended and nobody marked it a no-show');
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE leads SET next_action = 'Call happened (assumed) · sales follow-up', updated_at = datetime('now') WHERE id = ?`).bind(lead.id),
+    env.DB.prepare(`INSERT INTO activity_log (lead_id, activity_type, description) VALUES (?, 'call_outcome', 'Call treated as showed: no one answered the outcome check')`).bind(lead.id),
+  ]);
 }
 
 async function markLeadNoShow(env, lead, reason) {
   const fresh = await env.DB.prepare(`SELECT id, status FROM leads WHERE id = ?`).bind(lead.id).first();
-  if (!fresh || fresh.status !== 'booked') return false;
+  // "contacted" is allowed so an assumed-showed call can still be corrected by sales.
+  if (!fresh || !['booked', 'contacted'].includes(fresh.status)) return false;
   await setLeadStatus(env, fresh, 'no_show', reason);
   await env.DB.prepare(`UPDATE leads SET next_action = 'Missed the call · missed-call email sent with rebook link', next_action_date = NULL, booked_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(lead.id).run();
   return true;
@@ -1149,7 +1170,8 @@ export async function recordBookingOutcome(env, { bookingId, outcome, token }) {
   if (!(await verifyOutcomeToken(config.secret, bookingId, outcome, token))) return { ok: false, reason: 'invalid-link' };
   const row = await env.DB.prepare(`SELECT b.*, l.status AS lead_status, l.name AS lead_name FROM lead_bookings b LEFT JOIN leads l ON l.id = b.lead_id WHERE b.booking_id = ?`).bind(bookingId).first();
   if (!row) return { ok: false, reason: 'booking-not-found' };
-  if (row.outcome) return { ok: true, outcome: row.outcome, already: true, name: row.name };
+  // An assumed outcome is a default, not a decision: a real click overrides it.
+  if (row.outcome && row.outcome_by !== 'assumed') return { ok: true, outcome: row.outcome, already: true, name: row.name };
 
   const lead = row.lead_id ? { id: row.lead_id, status: row.lead_status, name: row.lead_name } : null;
   await env.DB.prepare(`UPDATE lead_bookings SET outcome = ?, outcome_at = datetime('now'), outcome_by = 'link', updated_at = datetime('now') WHERE booking_id = ?`).bind(outcome, bookingId).run();
