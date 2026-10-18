@@ -12,6 +12,7 @@ import {
   reserveUfytRepeatAcknowledgement,
   sendUfytRepeatAcknowledgement,
 } from './ufyt-duplicates.js';
+import { canSendMetaEvent, getMetaConfig, getNotificationEmails, resolveLeadSource } from './lead-config.js';
 
 // Cloudflare Worker for Unfuck Your Reviews Lead Capture
 // Handles form submissions + dashboard API
@@ -174,23 +175,9 @@ export default {
         return new Response(JSON.stringify({ success: false, error: 'Too many submissions. Please try again later.' }), { status: 429, headers: corsHeaders });
       }
 
-      // Determine source based on referer. The explicit source is only used as
-      // a local-development fallback and is restricted to known brands.
-      let source = 'unknown';
-      if (referer.includes('unfuckyourweb')) source = 'web';
-      else if (referer.includes('unfuckyourreviews')) source = 'reviews';
-      else if (referer.includes('unfuckyourads')) source = 'ads';
-      else if (referer.includes('unfuckyourtaxes')) source = 'taxes';
-      else {
-        const explicitSources = {
-          unfuckyourweb: 'web',
-          unfuckyourreviews: 'reviews',
-          unfuckyourads: 'ads',
-          unfuckyourtaxes: 'taxes',
-          ufyt: 'taxes',
-        };
-        source = explicitSources[data.source] || explicitSources[data.brand] || 'unknown';
-      }
+      // Prefer the request origin and only accept a restricted explicit source
+      // for local previews and other requests without a production referer.
+      const source = resolveLeadSource(referer, data);
 
       console.log('Lead submission:', { source, eventId: data.event_id || null });
 
@@ -320,16 +307,14 @@ export default {
       }
 
       // Send Meta Conversions API event
-      const metaConfig = source === 'taxes'
-        ? { token: env.UFYT_META_ACCESS_TOKEN, pixelId: '1708599440630382', contentName: 'Tax Help Request' }
-        : { token: env.META_ACCESS_TOKEN, pixelId: '1494351685495599', contentName: null };
-      const capiSources = ['web', 'reviews', 'ads', 'taxes'];
-      if (metaConfig.token && capiSources.includes(source) && !isInternalTest) {
+      const metaConfig = getMetaConfig(source, env);
+      if (metaConfig.token && canSendMetaEvent(source, data) && !isInternalTest) {
         const contentNames = {
           web: 'Website Audit Request',
           reviews: 'Review Management Service',
           ads: 'Ads Audit Request',
           taxes: metaConfig.contentName,
+          cmd: metaConfig.contentName,
         };
         ctx.waitUntil(sendMetaConversionEvent(metaConfig.token, metaConfig.pixelId, {
           eventName: 'Lead',
@@ -378,6 +363,22 @@ I'll hit you up shortly.
 
 To unfuckery and beyond,
 — Cameron`,
+          },
+          cmd: {
+            name: 'C Mathis Digital',
+            fromEmail: env.CMD_EMAIL_FROM || 'leads@unfuckyourweb.com',
+            replyTo: env.CMD_EMAIL_REPLY_TO || 'cameron@axesagency.com',
+            subject: 'New CMD Website Diagnostic Lead',
+            type: 'Website Diagnostic',
+            userSubject: 'Your website diagnostic request is in.',
+            userMessage: `Hey ${data.name.split(' ')[0]},
+
+Got your submission.
+
+I'll review the website, identify the problems most likely to cost you trust or leads, and follow up with the fixes worth prioritizing first.
+
+— Cameron
+C Mathis Digital`,
           },
           reviews: {
             name: 'Unfuck Your Reviews',
@@ -437,9 +438,7 @@ Jokes aside, you're in good hands.
 
         const brand = brandConfig[source] || brandConfig.reviews;
 
-        const notificationEmails = source === 'taxes' && env.UFYT_NOTIFICATION_EMAILS
-          ? env.UFYT_NOTIFICATION_EMAILS.split(',').map(email => email.trim()).filter(Boolean)
-          : ['cameron@axesagency.com'];
+        const notificationEmails = getNotificationEmails(source, env);
 
         const internalNotificationHtml = source === 'taxes'
           ? buildUfytSalesNotification(data, result.meta.last_row_id)
@@ -454,6 +453,7 @@ Jokes aside, you're in good hands.
                 <p><strong>Campaign:</strong> ${escapeHtml(data.utm_campaign || 'Direct / unknown')}</p>
                 <p><strong>Source:</strong> ${escapeHtml(source)}</p>
                 <p><strong>Lead ID:</strong> ${result.meta.last_row_id}</p>
+                ${source === 'cmd' ? '<p><a href="https://cmd-leads-dash.pages.dev/">Open the CMD Lead Desk</a></p>' : ''}
               `;
 
         // Internal notification
