@@ -858,6 +858,10 @@ export async function handleUfytEmailSequenceRequest(request, env, path) {
       }
       case '/api/ufyt/email/run':
         return jsonResponse({ success: true, ...(await processUfytEmailSequence(env, { limit: Number(body.limit) || 50 })) });
+      case '/api/ufyt/lead-status': {
+        const lead = await findLead(env, { leadId: body.leadId, email: body.email });
+        return jsonResponse(lead ? { success: true, leadId: lead.id, status: lead.status } : { success: false, error: 'lead-not-found' }, lead ? 200 : 404);
+      }
       case '/api/ufyt/booking/run':
         return jsonResponse({ success: true, ...(await processBookingMessages(env, { limit: Number(body.limit) || 50 })) });
       case '/api/ufyt/email/preview': {
