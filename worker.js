@@ -100,6 +100,17 @@ export default {
     console.log('UFYT email sequence run:', JSON.stringify(outcome));
     const bookings = await processBookingMessages(env).catch(error => ({ error: error.message }));
     console.log('UFYT booking messages run:', JSON.stringify(bookings));
+    // The Inbox account has no spare cron triggers, so this Worker drives its
+    // scheduled replies (agreement/invoice reminders sent as a person).
+    if (env.COMMUNICATIONS_INGEST_SECRET) {
+      const base = (env.COMMUNICATIONS_INGEST_URL || 'https://mathis-communications.mathisllc.workers.dev/api/integrations/leads').replace(/\/api\/integrations\/leads$/, '');
+      const replies = await fetch(`${base}/api/integrations/scheduled-replies/run`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.COMMUNICATIONS_INGEST_SECRET}`, 'Content-Type': 'application/json' },
+        body: '{}',
+      }).then(response => response.json()).catch(error => ({ error: error.message }));
+      console.log('UFYT inbox scheduled replies run:', JSON.stringify(replies));
+    }
   },
 
   async fetch(request, env, ctx) {
