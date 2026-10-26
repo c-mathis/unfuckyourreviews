@@ -10,6 +10,7 @@ import {
   formatInstant,
   describeSequenceProgress,
   scheduleBookingMessages,
+  bookingNotificationRecipients,
   leadSendTime,
   buildBookingMessage,
   makeOutcomeToken,
@@ -179,6 +180,14 @@ const sampleBooking = {
   id: 'bk_42', name: 'David Meade', email: 'david@example.com', phone: '(702) 555-0188', timeZone: 'America/New_York',
   start: new Date('2026-10-07T17:00:00Z'), end: new Date('2026-10-07T17:30:00Z'), bookingUrl: 'https://book.ufyt.dev/b/tok', source: 'email-1', leadId: 90,
 };
+
+test('booking notifications also reach the shared internal inbox', () => {
+  assert.deepEqual(bookingNotificationRecipients({
+    UFYT_NOTIFICATION_EMAILS: 'cameron@example.com,trevon@example.com',
+    UFYT_BOOKING_NOTIFICATION_EMAILS: 'hello@unfuckyourtaxes.com,trevon@example.com',
+  }, 'Real Client'), ['cameron@example.com', 'trevon@example.com', 'hello@unfuckyourtaxes.com']);
+  assert.deepEqual(bookingNotificationRecipients({ UFYT_BOOKING_NOTIFICATION_EMAILS: 'hello@unfuckyourtaxes.com' }, 'QA TEST Booking'), ['cameron@axesagency.com']);
+});
 
 test('booking messages are scheduled around the call and skip reminders that are already past', () => {
   const full = scheduleBookingMessages(sampleBooking, new Date('2026-10-05T12:00:00Z'));

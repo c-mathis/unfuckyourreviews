@@ -503,6 +503,13 @@ function internalRecipients(env, name) {
   return String(env.UFYT_NOTIFICATION_EMAILS || '').split(',').map(value => value.trim()).filter(Boolean);
 }
 
+export function bookingNotificationRecipients(env, name) {
+  const current = internalRecipients(env, name);
+  if (isQaLead(name)) return current;
+  const inboxes = String(env.UFYT_BOOKING_NOTIFICATION_EMAILS || '').split(',').map(value => value.trim()).filter(Boolean);
+  return [...new Set([...current, ...inboxes])];
+}
+
 /** Merge what the booking Worker sent with what the lead record knows. */
 function normalizeBooking(body, lead) {
   const start = body.startAt ? new Date(body.startAt) : null;
@@ -649,7 +656,7 @@ async function sendUfytBookingConfirmation(config, booking) {
 
 /** Tell sales a call was booked or cancelled, from the lead Worker's own key. */
 async function sendUfytBookingAlert(env, config, booking, lead, kind) {
-  const recipients = internalRecipients(env, booking.name);
+  const recipients = bookingNotificationRecipients(env, booking.name);
   if (!config.resendApiKey || recipients.length === 0) return null;
   const when = booking.start ? formatInstant(booking.start, TIME_ZONE) : null;
   const verb = kind === 'booked' ? 'New call booked' : 'Call cancelled';
@@ -1115,7 +1122,7 @@ async function sendBookingMessage(env, config, row) {
     }
   }
   const links = internal
-    ? { recipients: internalRecipients(env, booking.name), showed: await outcomeUrl(config, booking.id, 'showed'), noShow: await outcomeUrl(config, booking.id, 'no_show') }
+    ? { recipients: bookingNotificationRecipients(env, booking.name), showed: await outcomeUrl(config, booking.id, 'showed'), noShow: await outcomeUrl(config, booking.id, 'no_show') }
     : {};
   if (internal && links.recipients.length === 0) {
     await env.DB.prepare(`UPDATE booking_messages SET status = 'skipped', last_error = 'no-recipients', updated_at = datetime('now') WHERE id = ?`).bind(row.id).run();
