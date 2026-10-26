@@ -237,3 +237,18 @@ test('missed-call email is pushed to business hours in the lead zone', () => {
   assert.equal(leadSendTime(new Date('2026-10-06T05:31:00Z'), 'America/Los_Angeles').toISOString(), '2026-10-06T15:00:00.000Z');
   assert.equal(leadSendTime(new Date('2026-10-06T17:00:00Z'), 'America/New_York').toISOString(), '2026-10-06T17:00:00.000Z');
 });
+
+test('emails 1 and 2 personalize on the quiz problem and fall back to unsure', () => {
+  const config = getUfytEmailSequenceConfig({ UFYT_INTEGRATION_SECRET: 's' });
+  const pick = (problem) => previewUfytEmailSequence(config, { problem }).slice(0, 2).map(e => e.text);
+  assert.match(pick('owe')[0], /balance with the IRS or the state/);
+  assert.match(pick('owe')[1], /penalties and interest keep ticking/);
+  assert.match(pick('unfiled')[0], /one year or six/);
+  assert.match(pick('unfiled')[1], /Those will start to cause problems/);
+  assert.match(pick('notice')[0], /Those letters can seem worse than they are[\s\S]*Have the notice on the call if you can/);
+  assert.doesNotMatch(pick('notice')[0], /need to prepare anything/);
+  assert.match(pick('filing')[0], /It's unf\*ckable/);
+  assert.match(pick('unsure')[1], /Finding out is the easy part\. I got you\./);
+  assert.equal(problemKeyFor({}), 'unsure');
+  assert.equal(pick('anything-else')[0], pick('unsure')[0]);
+});

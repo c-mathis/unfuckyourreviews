@@ -19,8 +19,8 @@ const TIME_ZONE = SEND_WINDOW.timeZone;
 
 const SIGNATURE = 'Trevon R\nChief Tax Unf*cker\n213-752-5732\nunfuckyourtaxes.com';
 
-// Which of the quiz's "What's going on" answers this lead picked. Kept for the
-// Lead Desk and preview tooling; the current copy does not branch on it.
+// Which of the quiz's "What's going on" answers this lead picked. Emails 1 and 2
+// personalize on it; contact-form leads with no answer get the "unsure" copy.
 const PROBLEM_KEYS = [
   [/owe money/i, 'owe'],
   [/unfiled/i, 'unfiled'],
@@ -36,26 +36,62 @@ export const UFYT_EMAIL_SEQUENCE = [
     label: 'same day',
     offsetDays: 0,
     subject: () => 'Unf*ck Your Taxes - About your tax problems.',
-    body: ({ first, phone }) => [
-      greet('Hey', first),
-      `Trevon here from Unfuck Your Taxes. Let's chat so you can tell me about your tax problems.`,
-      `It doesn't matter how big of a mess it is. I can help you solve it.`,
-      `You don't need to prepare anything ahead of time for the call. Pretty casual.`,
-      { prefix: 'Book a meeting with me here: ', link: true },
-      `Or call or text me at ${phone}`,
-      SIGNATURE,
-    ],
+    body: ({ first, phone, problem }) => {
+      const opener = {
+        owe: [
+          `Trevon here from Unfuck Your Taxes. Sounds like you've got a balance with the IRS or the state. Let's talk about what you owe and where they're at with it.`,
+          `Honestly, this is the stuff I deal with every day. There are options, and I'll walk you through them.`,
+          `You don't need to prepare anything ahead of time for the call. Pretty casual.`,
+        ],
+        unfiled: [
+          `Trevon here from Unfuck Your Taxes. Sounds like you've got some returns that never got filed. Let's figure out which years we're talking about and go from there.`,
+          `Doesn't matter if it's one year or six. We'll get you caught up.`,
+          `You don't need to prepare anything ahead of time for the call. Pretty casual.`,
+        ],
+        notice: [
+          `Trevon here from Unfuck Your Taxes. Sounds like the IRS sent you something. Let's go over what it says and when they want an answer.`,
+          `Those letters can seem worse than they are. I'll tell you what yours actually means and what we do about it.`,
+          `Have the notice on the call if you can, but no worries if not.`,
+        ],
+        filing: [
+          `Trevon here from Unfuck Your Taxes. Sounds like you want to get your taxes filed and squared away. Let's talk about where things are and what it takes to get you current.`,
+          `Doesn't matter how messy it is right now. It's unf*ckable.`,
+          `You don't need to prepare anything ahead of time for the call. Pretty casual.`,
+        ],
+        unsure: [
+          `Trevon here from Unfuck Your Taxes. Sounds like you're not totally sure where your taxes stand. That's fine, most people aren't. Let's talk and figure it out together.`,
+          `Whatever it turns out to be, I can help you get it handled.`,
+          `You don't need to prepare anything ahead of time for the call. Pretty casual.`,
+        ],
+      }[problem] || null;
+      return [
+        greet('Hey', first),
+        ...(opener || [
+          `Trevon here from Unfuck Your Taxes. Sounds like you're not totally sure where your taxes stand. That's fine, most people aren't. Let's talk and figure it out together.`,
+          `Whatever it turns out to be, I can help you get it handled.`,
+          `You don't need to prepare anything ahead of time for the call. Pretty casual.`,
+        ]),
+        { prefix: 'Book a meeting with me here: ', link: true },
+        `Or call or text me at ${phone}`,
+        SIGNATURE,
+      ];
+    },
   },
   {
     step: 2,
     label: 'day 2',
     offsetDays: 2,
     subject: () => "Hey It's Unf*ck Your Taxes",
-    body: ({ first, phone }) => [
+    body: ({ first, phone, problem }) => [
       greet('Hey', first),
       `How are things?`,
       `I want to make sure we talk about your taxes.`,
-      `Especially if the IRS has been sending you notices.`,
+      {
+        owe: `Especially with that balance just sitting there. The penalties and interest keep ticking either way.`,
+        unfiled: `Especially with those returns still out there. Those will start to cause problems.`,
+        notice: `Especially with that letter in hand. Those deadlines come up quicker than you'd think.`,
+        filing: `Especially before the next deadline gets here. Way easier to get ahead of it than to chase it.`,
+      }[problem] || `Especially when you're not sure where things stand. Finding out is the easy part. I got you.`,
       `Let's do it.`,
       { prefix: 'Book a meeting with me here: ', link: true },
       `Or call or text me at ${phone}`,
