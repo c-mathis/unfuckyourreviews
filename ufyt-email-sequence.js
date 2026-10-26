@@ -166,8 +166,9 @@ function renderHtml(paragraphs, vars, config, unsubscribe) {
 
   const blocks = paragraphs.map(paragraph => {
     if (typeof paragraph !== 'string') {
-      const host = vars.bookingUrl.replace(/^https?:\/\//, '').split(/[/?]/)[0];
-      return `<p style="margin:0 0 16px">${escapeHtml(paragraph.prefix)}<a href="${escapeHtml(vars.bookingUrl)}" style="color:#078bff">${escapeHtml(host)}</a></p>`;
+      // HTML shows a clean call to action; the plain-text part keeps "prefix: URL".
+      const label = paragraph.label || 'Schedule here';
+      return `<p style="margin:0 0 16px"><a href="${escapeHtml(vars.bookingUrl)}" style="color:#078bff;font-weight:700">${escapeHtml(label)}</a></p>`;
     }
     return `<p style="margin:0 0 16px">${linkify(escapeHtml(paragraph)).replaceAll('\n', '<br>')}</p>`;
   });
@@ -598,8 +599,11 @@ function googleCalendarUrl(booking) {
 function plainHtml(paragraphs, links = {}) {
   const blocks = paragraphs.map(paragraph => {
     let escaped = escapeHtml(paragraph).replaceAll('\n', '<br>');
-    for (const [needle, href] of Object.entries(links)) {
-      escaped = escaped.replaceAll(escapeHtml(needle), `<a href="${escapeHtml(href)}" style="color:#078bff">${escapeHtml(needle)}</a>`);
+    for (const [needle, target] of Object.entries(links)) {
+      const href = typeof target === 'string' ? target : target.href;
+      const label = typeof target === 'string' ? needle : target.label;
+      const weight = typeof target === 'string' ? '' : ';font-weight:700';
+      escaped = escaped.replaceAll(escapeHtml(needle), `<a href="${escapeHtml(href)}" style="color:#078bff${weight}">${escapeHtml(label)}</a>`);
     }
     return `<p style="margin:0 0 16px">${escaped}</p>`;
   });
@@ -616,8 +620,8 @@ export function buildUfytBookingConfirmation(config, booking) {
     `You're booked. I'll call you at ${booking.phone || 'the number you gave me'} on ${when.long}.`,
     `You tell me what's going on with the IRS or state. I tell you what it takes to fix it and what it costs. No pitch, no pressure.`,
     `Have a notice or letter handy if you got one. That's the only prep.`,
-    `Need to move or cancel it? Open ${manage} or text me at ${config.phone}.`,
-    `Add it to Google Calendar: ${googleCalendarUrl(booking)}`,
+    `Need to move or cancel it? ${manage} or text me at ${config.phone}.`,
+    `${googleCalendarUrl(booking)}`,
     `A calendar invite is attached.`,
     SIGNATURE,
   ];
@@ -625,7 +629,7 @@ export function buildUfytBookingConfirmation(config, booking) {
   return {
     subject: `Your call with Unf*ck Your Taxes: ${when.day} at ${when.time} ${when.zone}`,
     text: paragraphs.join('\n\n'),
-    html: plainHtml(paragraphs, { [manage]: manage, [googleCalendarUrl(booking)]: googleCalendarUrl(booking), 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' }),
+    html: plainHtml(paragraphs, { [manage]: { href: manage, label: 'Manage your booking' }, [googleCalendarUrl(booking)]: { href: googleCalendarUrl(booking), label: 'Add to Google Calendar' }, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' }),
     ics: buildUfytBookingIcs(booking, { organizerName: 'Trevon R', organizerEmail, phone: config.phone }),
     when,
   };
@@ -1017,7 +1021,7 @@ export function buildBookingMessage(config, kind, booking, { lead = null, links 
         `If that time stopped working, move it here: ${manage}`,
         SIGNATURE,
       ],
-      links: { [manage]: manage, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
+      links: { [manage]: { href: manage, label: 'Reschedule here' }, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
     };
     case 'lead_1h': return {
       to: [booking.email], from: config.from, replyTo: config.replyTo,
@@ -1038,7 +1042,7 @@ export function buildBookingMessage(config, kind, booking, { lead = null, links 
         `Or call or text me at ${config.phone} whenever works.`,
         SIGNATURE,
       ],
-      links: { [rebook]: rebook, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
+      links: { [rebook]: { href: rebook, label: 'Schedule here' }, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
     };
     case 'sales_15m': return {
       to: links.recipients, from: INTERNAL_FROM,

@@ -81,7 +81,7 @@ test('every step renders text and html with the booking link and unsubscribe', (
     assert.match(rendered.text, /Hey Jordan|Hey again Jordan|You there, Jordan/);
     assert.match(rendered.text, /https:\/\/book\.ufyt\.dev\?lead=58/);
     assert.match(rendered.text, /Stop|Don’t want these/);
-    assert.match(rendered.html, /Book a meeting.*<a href="https:\/\/book\.ufyt\.dev\?lead=58/);
+    assert.match(rendered.html, /<a href="https:\/\/book\.ufyt\.dev\?lead=58[^"]*"[^>]*>Schedule here<\/a>/);
     assert.match(rendered.html, /email\/stop\?t=58\.abc/);
     assert.doesNotMatch(rendered.html, /<script/i);
   }
@@ -137,7 +137,7 @@ test('emails carry the Trevon signature, the phone, and no brand chrome', () => 
   for (const email of previewUfytEmailSequence(config)) {
     assert.match(email.text, /Trevon R\nChief Tax Unf\*cker\n213-752-5732\nunfuckyourtaxes\.com/);
     assert.match(email.html, /tel:\+12137525732/);
-    assert.match(email.html, /Book a meeting/);
+    assert.match(email.html, /<a href="https:\/\/book\.ufyt\.dev[^"]*"[^>]*>Schedule here<\/a>/);
     assert.doesNotMatch(email.html, /PICK A TIME|background:#f8f8f4/);
   }
 });
@@ -152,7 +152,8 @@ test('booking confirmation comes from Trevon with the invite and the manage link
   const rendered = buildUfytBookingConfirmation(config, booking);
   assert.equal(rendered.subject, 'Your call with Unf*ck Your Taxes: Mon, Sep 21 at 6:30 PM EDT');
   assert.match(rendered.text, /^Jordan,\n\nYou're booked\. I'll call you at \(415\) 555-0134 on Monday, September 21 at 6:30 PM EDT\./);
-  assert.match(rendered.text, /Open https:\/\/book\.ufyt\.dev\/b\/tok or text me at 213-752-5732/);
+  assert.match(rendered.text, /https:\/\/book\.ufyt\.dev\/b\/tok or text me at 213-752-5732/);
+  assert.match(rendered.html, /<a href="https:\/\/book\.ufyt\.dev\/b\/tok"[^>]*>Manage your booking<\/a>/);
   assert.match(rendered.text, /Trevon R\nChief Tax Unf\*cker/);
   assert.match(rendered.html, /href="https:\/\/book\.ufyt\.dev\/b\/tok"/);
   const unfolded = rendered.ics.replaceAll('\r\n ', '');
