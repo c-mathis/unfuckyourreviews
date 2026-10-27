@@ -654,11 +654,10 @@ export function buildUfytBookingConfirmation(config, booking) {
   const paragraphs = [
     `${first},`,
     `You're booked. I'll call you at ${booking.phone || 'the number you gave me'} on ${when.long}.`,
-    `You tell me what's going on with the IRS or state. I tell you what it takes to fix it and what it costs. No pitch, no pressure.`,
-    `Have a notice or letter handy if you got one. That's the only prep.`,
     `Need to move or cancel it? ${manage} or text me at ${config.phone}.`,
     `${googleCalendarUrl(booking)}`,
     `A calendar invite is attached.`,
+    `Talk to you soon,`,
     SIGNATURE,
   ];
   const organizerEmail = (config.from.match(/<([^>]+)>/) || [])[1] || 'trevon@unfuckyourtaxes.com';
@@ -1054,7 +1053,7 @@ export function buildBookingMessage(config, kind, booking, { lead = null, links 
       paragraphs: [
         `Hey ${first},`,
         `Quick reminder that I'm calling you tomorrow, ${theirs.day} at ${theirs.time} ${theirs.zone}, at ${booking.phone || 'the number you gave me'}.`,
-        `If that time stopped working, move it here: ${manage}`,
+        `If you need to change it, move it here: ${manage}`,
         SIGNATURE,
       ],
       links: { [manage]: { href: manage, label: 'Reschedule here' }, 'unfuckyourtaxes.com': 'https://unfuckyourtaxes.com' },
