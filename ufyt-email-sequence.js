@@ -14,9 +14,9 @@ import {
 // sales moves the lead past "new". Sending happens from a cron; enqueueing
 // happens at submission.
 //
-// Cadence (Pacific business days):
-//   1  two to three hours after the quiz when that lands inside a weekday
-//      08:00–17:00 window; otherwise the next business morning 08:45–10:15
+// Cadence:
+//   1  due five minutes after submission, including nights and weekends;
+//      the five-minute cron normally sends it within five to ten minutes
 //   2  day 2   } random time 09:00–15:00, weekends roll to Monday,
 //   3  day 4   } never two steps on the same calendar day
 //   4  day 8   }
@@ -281,19 +281,8 @@ export function zonedTime(calendarDay, minutesIntoDay, timeZone = TIME_ZONE) {
 
 const minutes = (h, m = 0) => h * 60 + m;
 
-function scheduleFirstStep(now, rand) {
-  const local = localParts(now);
-  const today = Date.UTC(local.year, local.month - 1, local.day);
-  const weekday = !isWeekend(today);
-
-  if (weekday && local.hour >= 8) {
-    const candidate = new Date(now.getTime() + (120 + Math.floor(rand() * 61)) * 60_000);
-    const c = localParts(candidate);
-    if (calendarDayOf(candidate) === today && c.hour < 17) return candidate;
-  }
-  const morning = minutes(8, 45) + Math.floor(rand() * 91);
-  const day = weekday && local.hour < 8 ? today : nextBusinessDay(today);
-  return zonedTime(day, morning);
+function scheduleFirstStep(now) {
+  return new Date(now.getTime() + 5 * 60_000);
 }
 
 /** Send instants for every step of a lead that arrived at `now`. */
@@ -304,7 +293,7 @@ export function scheduleUfytEmailSequence(now, rand = Math.random, steps = UFYT_
   for (const step of steps) {
     let sendAt;
     if (step.step === 1) {
-      sendAt = scheduleFirstStep(now, rand);
+      sendAt = scheduleFirstStep(now);
     } else {
       let day = rollToBusinessDay(leadDay + step.offsetDays * DAY);
       while (lastDay !== null && day <= lastDay) day = nextBusinessDay(day);

@@ -108,26 +108,32 @@ test('zonedTime maps Pacific wall clock to UTC across DST', () => {
   assert.equal(zonedTime(Date.UTC(2026, 11, 16), 9 * 60).toISOString(), '2026-12-16T17:00:00.000Z'); // PST
 });
 
-test('step 1 goes out two to three hours later on a weekday afternoon', () => {
+test('step 1 is due five minutes after a weekday submission', () => {
   const lead = new Date('2026-09-22T17:00:00Z'); // Tue 10:00 PDT
   const [first] = scheduleUfytEmailSequence(lead, fixedRand(0.5));
-  assert.equal(first.sendAt.toISOString(), '2026-09-22T19:30:00.000Z'); // 12:30 PDT
+  assert.equal(first.sendAt.toISOString(), '2026-09-22T17:05:00.000Z'); // 10:05 PDT
 });
 
-test('step 1 waits for the next business morning after hours and on weekends', () => {
-  const late = scheduleUfytEmailSequence(new Date('2026-09-23T01:00:00Z'), fixedRand(0))[0]; // Tue 18:00 PDT
-  assert.equal(pacific(late.sendAt), 'Wed, 09/23, 08:45');
-  const saturday = scheduleUfytEmailSequence(new Date('2026-09-26T18:00:00Z'), fixedRand(0.99))[0]; // Sat 11:00 PDT
-  assert.equal(pacific(saturday.sendAt), 'Mon, 09/28, 10:15');
-  const early = scheduleUfytEmailSequence(new Date('2026-09-22T12:00:00Z'), fixedRand(0))[0]; // Tue 05:00 PDT
-  assert.equal(pacific(early.sendAt), 'Tue, 09/22, 08:45');
+test('step 1 stays five minutes away overnight, on weekends, and across DST', () => {
+  for (const instant of [
+    '2026-09-23T01:00:00Z', // Tue 18:00 PDT
+    '2026-09-26T18:00:00Z', // Sat 11:00 PDT
+    '2026-09-22T12:00:00Z', // Tue 05:00 PDT
+    '2026-09-23T06:58:00Z', // Tue 23:58 PDT, crosses midnight
+    '2026-11-01T08:58:00Z', // Pacific DST fall-back
+    '2027-03-14T09:58:00Z', // Pacific DST spring-forward
+  ]) {
+    const now = new Date(instant);
+    const [first] = scheduleUfytEmailSequence(now, fixedRand(0.99));
+    assert.equal(first.sendAt.getTime() - now.getTime(), 5 * 60_000, instant);
+  }
 });
 
 test('later steps land on distinct business days between 9am and 3pm', () => {
   const lead = new Date('2026-09-24T17:00:00Z'); // Thu 10:00 PDT
   const days = scheduleUfytEmailSequence(lead, fixedRand(0)).map(item => pacific(item.sendAt));
   // day 2 = Sat -> Mon 9/28, day 4 = Mon 9/28 -> pushed to Tue 9/29, day 8 = Fri 10/2
-  assert.deepEqual(days, ['Thu, 09/24, 12:00', 'Mon, 09/28, 09:00', 'Tue, 09/29, 09:00', 'Fri, 10/02, 09:00']);
+  assert.deepEqual(days, ['Thu, 09/24, 10:05', 'Mon, 09/28, 09:00', 'Tue, 09/29, 09:00', 'Fri, 10/02, 09:00']);
   const latest = scheduleUfytEmailSequence(lead, fixedRand(0.999))[1];
   assert.equal(pacific(latest.sendAt), 'Mon, 09/28, 14:59');
 });

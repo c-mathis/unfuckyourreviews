@@ -29,6 +29,6 @@ UFYT_EMAIL_REPLY_TO = "trevon@unfuckyourtaxes.com"
 UFYT_BOOKING_NOTIFICATION_EMAILS = "hello@unfuckyourtaxes.com"
 CMD_NOTIFICATION_EMAILS = "cameron@axesagency.com"
 
-# UFYT email follow-up sequence: send due steps every ten minutes.
+# First email is due after five minutes; poll every five for a 5–10 minute send.
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/5 * * * *"]
