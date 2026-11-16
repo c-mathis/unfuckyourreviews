@@ -1,3 +1,4 @@
+import { resolutionDebt, hasResolutionConsent, processResolutionDeliveries, checkResolutionConnection, RESOLUTION_PATH } from './ufyt-resolution.js';
 import {
   enqueueUfytEmailSequence,
   handleUfytEmailSequenceRequest,
@@ -97,6 +98,9 @@ async function checkRateLimit(ip, env) {
 export default {
   // Cron: send due UFYT follow-up emails.
   async scheduled(event, env, ctx) {
+    const resolution = await processResolutionDeliveries(env).catch(error => ({ error: error.message }));
+    console.log('UFYT resolution delivery run:', JSON.stringify(resolution));
+    if (new Date(event.scheduledTime || Date.now()).getUTCMinutes() % 5 !== 0) return;
     const outcome = await processUfytEmailSequence(env);
     console.log('UFYT email sequence run:', JSON.stringify(outcome));
     const bookings = await processBookingMessages(env).catch(error => ({ error: error.message }));
@@ -149,6 +153,10 @@ export default {
         return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
       }
       return handleUpdateLead(request, env, corsHeaders);
+    }
+
+    if (path === '/api/ufyt/resolution/check' && request.method === 'POST') {
+      return checkResolutionConnection(request, env);
     }
 
     // UFYT email follow-up sequence + booking/reply signals (bearer-protected).
@@ -212,6 +220,14 @@ export default {
         }
       }
 
+      const isResolution = env.UFYT_RESOLUTION_ENABLED === 'true' && source === 'taxes' && Boolean(resolutionDebt(data));
+      if (isResolution && (!hasResolutionConsent(data) || !/^1?\d{10}$/.test(String(data.phone || '').replace(/\D/g, '')))) {
+        return new Response(JSON.stringify({ success: false, error: 'Please reload the form and confirm the tax resolution referral and your phone number.' }), { status: 422, headers: corsHeaders });
+      }
+      const resolutionTransactionId = isResolution ? crypto.randomUUID() : null;
+      const resolutionStatus = isResolution ? (isInternalTest ? 'test_hold' : 'pending') : null;
+      const resolutionSendAfter = isResolution ? new Date(Date.now() + 120000).toISOString() : null;
+
       // Insert into D1. The unique dedupe index also protects against two
       // submissions arriving between the lookup above and this write.
       let result;
@@ -223,8 +239,9 @@ export default {
             utm_source, utm_medium, utm_campaign, utm_content, utm_term,
             referrer, landing_page,
             ip_address, user_agent, brand, surface, event_id,
-            dedupe_key, triage_score, fbclid, gclid, payload_json
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            dedupe_key, triage_score, fbclid, gclid, payload_json,
+            lead_route, partner_transaction_id, resolution_status, resolution_send_after
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           source,
           data.name,
@@ -251,7 +268,11 @@ export default {
           parseInt(data.internal_triage_score) || 0,
           data.fbclid || null,
           data.gclid || null,
-          JSON.stringify(data)
+          JSON.stringify(data),
+          isResolution ? 'resolution' : 'ufyt',
+          resolutionTransactionId,
+          resolutionStatus,
+          resolutionSendAfter
         ).run();
       } catch (error) {
         if (dedupeKey) {
@@ -273,7 +294,7 @@ export default {
 
       // Queue the UFYT email follow-up sequence. Steps go out from the cron and
       // stop when the lead books, replies, opts out, or leaves "new".
-      if (source === 'taxes' && data.email) {
+      if (source === 'taxes' && data.email && !isResolution) {
         ctx.waitUntil(
           enqueueUfytEmailSequence(env, { leadId: result.meta.last_row_id, email: data.email })
             .then(outcome => console.log('UFYT email sequence:', JSON.stringify(outcome)))
@@ -481,15 +502,15 @@ Jokes aside, you're in good hands.
             body: JSON.stringify({
               from: `${brand.name} <${brand.fromEmail}>`,
               to: notificationEmails,
-              subject: `${brand.subject}: ${data.name}`,
+              subject: `${isResolution ? 'New Resolution Lead' : brand.subject}: ${data.name}`,
               html: internalNotificationHtml,
             }),
           }).then(res => logResendOutcome('Internal email', res))
             .catch(err => console.error('Internal email error:', err))
         );
 
-        // Confirmation email to user
-        ctx.waitUntil(
+        // Resolution leads receive the on-page confirmation, then Five Star's welcome.
+        if (!isResolution) ctx.waitUntil(
           fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
@@ -512,6 +533,8 @@ Jokes aside, you're in good hands.
         JSON.stringify({
           success: true,
           duplicate: false,
+          route: isResolution ? 'resolution' : 'ufyt',
+          confirmation_path: isResolution ? RESOLUTION_PATH : '/thank-you',
           lead_id: result.meta.last_row_id,
           message: 'Lead submitted successfully',
         }),
@@ -531,7 +554,7 @@ Jokes aside, you're in good hands.
 async function handleUfytRepeatSubmission({ env, ctx, corsHeaders, lead, data, clientIp, userAgent }) {
   const outcome = await recordUfytRepeatSubmission(env, { lead, data, clientIp, userAgent });
   const acknowledgementDay = new Date().toISOString().slice(0, 10);
-  const reserved = await reserveUfytRepeatAcknowledgement(env, lead.id, acknowledgementDay);
+  const reserved = lead.lead_route !== 'resolution' && await reserveUfytRepeatAcknowledgement(env, lead.id, acknowledgementDay);
 
   if (reserved) {
     ctx.waitUntil(
@@ -549,6 +572,8 @@ async function handleUfytRepeatSubmission({ env, ctx, corsHeaders, lead, data, c
   return new Response(JSON.stringify({
     success: true,
     duplicate: true,
+    route: lead.lead_route || 'ufyt',
+    confirmation_path: lead.lead_route === 'resolution' ? RESOLUTION_PATH : '/already-submitted',
     lead_id: lead.id,
     message: 'We already have your information.',
   }), { status: 200, headers: corsHeaders });
