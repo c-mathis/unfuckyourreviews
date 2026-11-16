@@ -527,7 +527,7 @@ async function findLead(env, { leadId, email }) {
 }
 
 const QA_ALERT_EMAIL = 'cameron@axesagency.com';
-const LEAD_DESK_URL = 'https://ufyt-leads-dash.pages.dev';
+const LEAD_DESK_URL = 'https://leads.unfuckyourtaxes.com';
 const INTERNAL_FROM = 'Unfuck Your Taxes <leads@unfuckyourtaxes.com>';
 const DEFAULT_CALL_MINUTES = 30;
 

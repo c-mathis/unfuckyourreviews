@@ -784,7 +784,7 @@ function getUfytSmsAlertRecipients(value) {
 function buildUfytSmsAlertBody(lead, leadId) {
   const name = String(lead.name || [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'Unknown name').trim();
   const phone = String(lead.phone || 'No phone provided').trim();
-  return `New UFYT lead: ${name}\n${phone}\nLead #${leadId}: https://ufyt-leads-dash.pages.dev`;
+  return `New UFYT lead: ${name}\n${phone}\nLead #${leadId}: https://leads.unfuckyourtaxes.com`;
 }
 
 async function sendUfytLeadToCommunications(config) {
@@ -805,7 +805,7 @@ async function sendUfytLeadToCommunications(config) {
       status: 'new',
       priority: Number(lead.internal_triage_score || 0) >= 70 ? 'high' : 'medium',
       createdAt: lead.created_at || new Date().toISOString(),
-      externalUrl: 'https://ufyt-leads-dash.pages.dev',
+      externalUrl: 'https://leads.unfuckyourtaxes.com',
     }),
   });
   if (!response.ok) {
