@@ -27,7 +27,7 @@ export async function findExistingUfytLead(env, data) {
   const key = buildUfytDedupeKey(data);
   if (!key) return null;
   return env.DB.prepare(`
-    SELECT id, name, email, phone, status, email_opt_out, booked_at, replied_at, created_at
+    SELECT id, name, email, phone, status, email_opt_out, booked_at, replied_at, created_at, lead_route
     FROM leads
     WHERE source = 'taxes' AND dedupe_key = ?
     ORDER BY created_at DESC, id DESC
@@ -61,11 +61,11 @@ export async function recordUfytRepeatSubmission(env, { lead, data, clientIp, us
       UPDATE leads
       SET updated_at = datetime('now'),
           next_action = CASE
-            WHEN status IN ('new', 'contacted') THEN 'Repeat submission received — contact or confirm booking'
+            WHEN lead_route != 'resolution' AND status IN ('new', 'contacted') THEN 'Repeat submission received — contact or confirm booking'
             ELSE next_action
           END,
           next_action_date = CASE
-            WHEN status IN ('new', 'contacted') THEN datetime('now')
+            WHEN lead_route != 'resolution' AND status IN ('new', 'contacted') THEN datetime('now')
             ELSE next_action_date
           END
       WHERE id = ?

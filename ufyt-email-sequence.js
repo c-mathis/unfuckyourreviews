@@ -365,6 +365,9 @@ export async function enqueueUfytEmailSequence(env, { leadId, email, now = new D
   if (!config.enabled) return { queued: false, reason: 'disabled' };
   if (!email) return { queued: false, reason: 'no-email' };
 
+  const route = await env.DB.prepare('SELECT lead_route FROM leads WHERE id = ?').bind(leadId).first();
+  if (route?.lead_route === 'resolution') return { queued: false, reason: 'resolution' };
+
   const optedOut = await env.DB.prepare(`
     SELECT 1 FROM leads WHERE email = ? COLLATE NOCASE AND email_opt_out = 1 LIMIT 1
   `).bind(email).first();
@@ -393,7 +396,7 @@ export async function processUfytEmailSequence(env, { limit = 50, now = new Date
   const due = await env.DB.prepare(`
     SELECT s.id, s.lead_id, s.step, s.attempts,
            l.name, l.email, l.phone, l.payload_json, l.status AS lead_status,
-           l.email_opt_out, l.booked_at, l.replied_at
+           l.email_opt_out, l.booked_at, l.replied_at, l.lead_route
     FROM email_sequence s JOIN leads l ON l.id = s.lead_id
     WHERE s.status = 'pending' AND s.send_at <= ?
     ORDER BY s.send_at
@@ -413,7 +416,8 @@ async function sendUfytEmailStep(env, config, row) {
   const email = String(row.email || '').trim();
 
   let skipReason = null;
-  if (!template) skipReason = 'unknown-step';
+  if (row.lead_route === 'resolution') skipReason = 'resolution';
+  else if (!template) skipReason = 'unknown-step';
   else if (!email) skipReason = 'no-email';
   else if (Number(row.email_opt_out) === 1) skipReason = 'opted-out';
   else if (row.booked_at) skipReason = 'booked';
