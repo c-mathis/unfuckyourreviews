@@ -81,3 +81,25 @@ test('queued UFYT follow-up is suppressed if lead route is resolution', async ()
   const r = await processUfytEmailSequence({ DB: db, UFYT_EMAIL_SEQUENCE_ENABLED: 'true', UFYT_RESEND_API_KEY: 'test' });
   assert.equal(r.skipped, 1); assert.equal(sql.prepare('SELECT status FROM email_sequence').get().status, 'skipped');
 });
+
+test('resolution intake and repeats never send the prospect a UFYT confirmation email', async () => {
+  const { db } = database();
+  const originalFetch = globalThis.fetch;
+  const messages = [];
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://api.resend.com/emails');
+    messages.push(JSON.parse(options.body));
+    return Response.json({ id: 'mock-email' });
+  };
+  try {
+    const env = { DB: db, UFYT_RESOLUTION_ENABLED: 'true', UFYT_EMAIL_SEQUENCE_ENABLED: 'true', UFYT_RESEND_API_KEY: 'mock-key', UFYT_NOTIFICATION_EMAILS: 'staff@example.test' };
+    assert.equal((await submit(env, input())).body.route, 'resolution');
+    assert.equal((await submit(env, input())).body.duplicate, true);
+    assert.equal(messages.length, 1);
+    assert.deepEqual(messages[0].to, ['staff@example.test']);
+    assert.match(messages[0].subject, /New Resolution Lead/);
+    await submit(env, input({ email: 'regular@example.com', debt_amount: '$0 - $10,000', resolution_consent: null }));
+    assert.equal(messages.filter(m => m.to.includes('regular@example.com')).length, 1);
+    assert.equal(messages.filter(m => m.to.includes('ada@example.com')).length, 0);
+  } finally { globalThis.fetch = originalFetch; }
+});
