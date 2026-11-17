@@ -36,3 +36,14 @@ until its transaction ID has been checked in Salesforce.
 Migration: `0009_resolution_delivery.sql`. Local validation includes SQL-backed
 intake, the two-minute boundary, retries, canonical repeats, historical-prospect
 protection, QA hold and email suppression. Run `npm test`.
+
+## Submit-button consent — November 16, 2026
+
+The public form now shows a concise referral notice above Submit rather than a
+checkbox. Its `ufyt-resolution-submit-2026-11-16` receipt includes the exact
+displayed text, `accepted: true`, `acceptance_method: form_submit`, capture time
+and page. Capture occurs only on a validated form submission. The intake
+validator accepts this version and keeps earlier checkbox receipts valid for
+existing records and already-open forms. Deploy the backward-compatible Worker
+before the new public asset. This records the requested consent interaction;
+it does not independently certify the notice for every partner outreach method.

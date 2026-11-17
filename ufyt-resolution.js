@@ -1,5 +1,7 @@
 export const RESOLUTION_CONSENT_VERSION = 'ufyt-resolution-2026-11-16';
 export const RESOLUTION_CONSENT_TEXT = 'I agree to have my contact details and tax debt amount shared with an independent tax resolution firm, which may call, text, or email me about my request. UFYT may receive compensation for this referral. Consent is not a condition of purchase.';
+export const RESOLUTION_SUBMIT_CONSENT_VERSION = 'ufyt-resolution-submit-2026-11-16';
+export const RESOLUTION_SUBMIT_CONSENT_TEXT = 'By sending, you agree we may share your contact details and tax debt amount with an independent tax resolution firm that may call, text or email you about your enquiry. UFYT may receive a referral fee. Consent is not required to purchase.';
 export const RESOLUTION_PATH = '/resolution-thank-you';
 
 export async function checkResolutionConnection(request, env) {
@@ -28,9 +30,17 @@ export function resolutionDebt(data = {}) {
 }
 
 export function hasResolutionConsent(data) {
-  return data.resolution_consent?.accepted === true
-    && data.resolution_consent.version === RESOLUTION_CONSENT_VERSION
-    && data.resolution_consent.text === RESOLUTION_CONSENT_TEXT;
+  const consent = data.resolution_consent;
+  if (consent?.accepted !== true) return false;
+  // Keep existing records and already-open checkbox forms valid.
+  if (consent.version === RESOLUTION_CONSENT_VERSION) {
+    return consent.text === RESOLUTION_CONSENT_TEXT;
+  }
+  return consent.version === RESOLUTION_SUBMIT_CONSENT_VERSION
+    && consent.text === RESOLUTION_SUBMIT_CONSENT_TEXT
+    && consent.acceptance_method === 'form_submit'
+    && typeof consent.captured_at === 'string'
+    && Number.isFinite(Date.parse(consent.captured_at));
 }
 
 export function resolutionPayload(lead) {

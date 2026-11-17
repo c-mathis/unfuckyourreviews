@@ -222,7 +222,7 @@ export default {
 
       const isResolution = env.UFYT_RESOLUTION_ENABLED === 'true' && source === 'taxes' && Boolean(resolutionDebt(data));
       if (isResolution && (!hasResolutionConsent(data) || !/^1?\d{10}$/.test(String(data.phone || '').replace(/\D/g, '')))) {
-        return new Response(JSON.stringify({ success: false, error: 'Please reload the form and confirm the tax resolution referral and your phone number.' }), { status: 422, headers: corsHeaders });
+        return new Response(JSON.stringify({ success: false, error: 'Please reload the form and check your phone number before sending.' }), { status: 422, headers: corsHeaders });
       }
       const resolutionTransactionId = isResolution ? crypto.randomUUID() : null;
       const resolutionStatus = isResolution ? (isInternalTest ? 'test_hold' : 'pending') : null;

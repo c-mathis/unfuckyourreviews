@@ -103,3 +103,28 @@ test('resolution intake and repeats never send the prospect a UFYT confirmation 
     assert.equal(messages.filter(m => m.to.includes('ada@example.com')).length, 0);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('submit-button receipt is stored, queues delivery, and rejects missing or mismatched evidence', async () => {
+  const { RESOLUTION_SUBMIT_CONSENT_VERSION, RESOLUTION_SUBMIT_CONSENT_TEXT, hasResolutionConsent } = await import('../ufyt-resolution.js');
+  const consent = { accepted: true, version: RESOLUTION_SUBMIT_CONSENT_VERSION,
+    text: RESOLUTION_SUBMIT_CONSENT_TEXT, acceptance_method: 'form_submit',
+    captured_at: new Date().toISOString(), page: 'https://unfuckyourtaxes.com/quiz' };
+  assert.equal(hasResolutionConsent(input()), true, 'legacy checkbox remains supported');
+  for (const override of [{ accepted: false }, { acceptance_method: undefined }, { text: 'different text' }, { version: 'unknown' }, { captured_at: 'invalid' }]) {
+    const { db, sql } = database();
+    const result = await submit({ DB: db, UFYT_RESOLUTION_ENABLED: 'true' }, input({ resolution_consent: { ...consent, ...override } }));
+    assert.equal(result.response.status, 422);
+    assert.equal(sql.prepare('SELECT COUNT(*) n FROM leads').get().n, 0);
+  }
+  const { db, sql } = database();
+  const env = { DB: db, UFYT_RESOLUTION_ENABLED: 'true', UFYT_RESOLUTION_RELAY_SECRET: 'test', FIVE_STAR_DELIVERY: {
+    async fetch() { return Response.json({ partner_record_id: '00QVs00000hvqHHMAY' }); }
+  } };
+  const result = await submit(env, input({ resolution_consent: consent }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.route, 'resolution');
+  const lead = sql.prepare('SELECT * FROM leads').get();
+  assert.deepEqual(JSON.parse(lead.payload_json).resolution_consent, consent);
+  assert.equal(sql.prepare('SELECT COUNT(*) n FROM email_sequence').get().n, 0);
+  assert.equal((await processResolutionDeliveries(env, { now: new Date(lead.resolution_send_after) })).delivered, 1);
+});
