@@ -47,3 +47,7 @@ validator accepts this version and keeps earlier checkbox receipts valid for
 existing records and already-open forms. Deploy the backward-compatible Worker
 before the new public asset. This records the requested consent interaction;
 it does not independently certify the notice for every partner outreach method.
+
+The shorter user-supplied notice uses receipt version
+`ufyt-resolution-submit-2026-11-16-v2`. Both earlier receipt versions remain
+accepted without rewriting historical consent evidence.

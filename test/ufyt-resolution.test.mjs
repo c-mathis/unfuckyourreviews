@@ -105,11 +105,12 @@ test('resolution intake and repeats never send the prospect a UFYT confirmation 
 });
 
 test('submit-button receipt is stored, queues delivery, and rejects missing or mismatched evidence', async () => {
-  const { RESOLUTION_SUBMIT_CONSENT_VERSION, RESOLUTION_SUBMIT_CONSENT_TEXT, hasResolutionConsent } = await import('../ufyt-resolution.js');
-  const consent = { accepted: true, version: RESOLUTION_SUBMIT_CONSENT_VERSION,
-    text: RESOLUTION_SUBMIT_CONSENT_TEXT, acceptance_method: 'form_submit',
+  const { RESOLUTION_SHORT_CONSENT_VERSION, RESOLUTION_SHORT_CONSENT_TEXT, RESOLUTION_SUBMIT_CONSENT_VERSION, RESOLUTION_SUBMIT_CONSENT_TEXT, hasResolutionConsent } = await import('../ufyt-resolution.js');
+  const consent = { accepted: true, version: RESOLUTION_SHORT_CONSENT_VERSION,
+    text: RESOLUTION_SHORT_CONSENT_TEXT, acceptance_method: 'form_submit',
     captured_at: new Date().toISOString(), page: 'https://unfuckyourtaxes.com/quiz' };
   assert.equal(hasResolutionConsent(input()), true, 'legacy checkbox remains supported');
+  assert.equal(hasResolutionConsent({ resolution_consent: { ...consent, version: RESOLUTION_SUBMIT_CONSENT_VERSION, text: RESOLUTION_SUBMIT_CONSENT_TEXT } }), true, 'previous notice remains supported');
   for (const override of [{ accepted: false }, { acceptance_method: undefined }, { text: 'different text' }, { version: 'unknown' }, { captured_at: 'invalid' }]) {
     const { db, sql } = database();
     const result = await submit({ DB: db, UFYT_RESOLUTION_ENABLED: 'true' }, input({ resolution_consent: { ...consent, ...override } }));
