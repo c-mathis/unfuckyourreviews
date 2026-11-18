@@ -34,6 +34,7 @@ test('problemKeyFor maps every quiz answer', () => {
   assert.equal(problemKeyFor({ tax_problem: 'I have unfiled tax returns' }), 'unfiled');
   assert.equal(problemKeyFor({ tax_problem: 'I received a notice from the IRS or am being audited' }), 'notice');
   assert.equal(problemKeyFor({ tax_problem: 'I need help filing or organizing my taxes' }), 'filing');
+  assert.equal(problemKeyFor({ tax_problem: 'I need help filing my tax returns', unfiled_years: '1 year' }), 'filing');
   assert.equal(problemKeyFor({ tax_problem: "I'm not sure — I just know I'm f*cked" }), 'unsure');
   assert.equal(problemKeyFor({}), 'unsure');
 });
