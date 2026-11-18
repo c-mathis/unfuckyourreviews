@@ -896,7 +896,7 @@ function buildUfytSalesNotification(data, leadId) {
   const followUpFields = [
     ['debt_amount', 'Approximately how much do you owe?'],
     ['collection_actions', 'Have you received any of the following?'],
-    ['unfiled_years', 'How many years are unfiled?'],
+    ['unfiled_years', 'How many years do you need filed?'],
     ['self_employed', 'Are you self-employed?'],
     ['notice_type', 'What type of notice did you receive?'],
     ['notice_deadline', 'What is the deadline listed on the notice?'],
