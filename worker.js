@@ -473,7 +473,7 @@ Jokes aside, you're in good hands.
 
         const brand = brandConfig[source] || brandConfig.reviews;
 
-        const notificationEmails = getNotificationEmails(source, env);
+        const notificationEmails = getNotificationEmails(source, env, isResolution);
 
         const internalNotificationHtml = source === 'taxes'
           ? buildUfytSalesNotification(data, result.meta.last_row_id)

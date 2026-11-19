@@ -92,7 +92,7 @@ test('resolution intake and repeats never send the prospect a UFYT confirmation 
     return Response.json({ id: 'mock-email' });
   };
   try {
-    const env = { DB: db, UFYT_RESOLUTION_ENABLED: 'true', UFYT_EMAIL_SEQUENCE_ENABLED: 'true', UFYT_RESEND_API_KEY: 'mock-key', UFYT_NOTIFICATION_EMAILS: 'staff@example.test' };
+    const env = { DB: db, UFYT_RESOLUTION_ENABLED: 'true', UFYT_EMAIL_SEQUENCE_ENABLED: 'true', UFYT_RESEND_API_KEY: 'mock-key', UFYT_NOTIFICATION_EMAILS: 'staff@example.test,trevon@apextaxteam.com', UFYT_RESOLUTION_NOTIFICATION_EMAILS: 'staff@example.test' };
     assert.equal((await submit(env, input())).body.route, 'resolution');
     assert.equal((await submit(env, input())).body.duplicate, true);
     assert.equal(messages.length, 1);
@@ -100,6 +100,9 @@ test('resolution intake and repeats never send the prospect a UFYT confirmation 
     assert.match(messages[0].subject, /New Resolution Lead/);
     await submit(env, input({ email: 'regular@example.com', debt_amount: '$0 - $10,000', resolution_consent: null }));
     assert.equal(messages.filter(m => m.to.includes('regular@example.com')).length, 1);
+    const regularAlert = messages.find(m => m.subject === 'New Tax Lead: Ada Test');
+    assert.deepEqual(regularAlert.to, ['staff@example.test', 'trevon@apextaxteam.com']);
+    assert.equal(messages.filter(m => /New Resolution Lead/.test(m.subject) && m.to.includes('trevon@apextaxteam.com')).length, 0);
     assert.equal(messages.filter(m => m.to.includes('ada@example.com')).length, 0);
   } finally { globalThis.fetch = originalFetch; }
 });

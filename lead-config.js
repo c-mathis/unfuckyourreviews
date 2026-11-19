@@ -68,8 +68,10 @@ function emailList(value) {
     .filter(Boolean);
 }
 
-export function getNotificationEmails(source, env = {}) {
+export function getNotificationEmails(source, env = {}, isResolution = false) {
   if (source === 'taxes') {
+    const resolutionRecipients = isResolution ? emailList(env.UFYT_RESOLUTION_NOTIFICATION_EMAILS) : [];
+    if (resolutionRecipients.length) return resolutionRecipients;
     const recipients = emailList(env.UFYT_NOTIFICATION_EMAILS);
     if (recipients.length) return recipients;
   }

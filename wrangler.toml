@@ -25,6 +25,7 @@ custom_domain = true
 
 [vars]
 UFYT_RESOLUTION_ENABLED = "true"
+UFYT_RESOLUTION_NOTIFICATION_EMAILS = "unfxckmarketing@gmail.com"
 # Flip to "true" to start queueing and sending the UFYT email follow-up sequence.
 UFYT_EMAIL_SEQUENCE_ENABLED = "true"
 UFYT_LEAD_WORKER_URL = "https://go.unfuckyourtaxes.com"

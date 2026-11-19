@@ -35,3 +35,16 @@ test('uses a CMD-specific notification list with the established fallback', () =
   );
   assert.deepEqual(getNotificationEmails('cmd', {}), ['cameron@axesagency.com']);
 });
+
+
+test('Resolution has its own recipients without changing regular UFYT or other brands', () => {
+  const env = {
+    UFYT_NOTIFICATION_EMAILS: 'unfxckmarketing@gmail.com, trevon@apextaxteam.com',
+    UFYT_RESOLUTION_NOTIFICATION_EMAILS: ' unfxckmarketing@gmail.com ',
+    CMD_NOTIFICATION_EMAILS: 'cameron@axesagency.com',
+  };
+  assert.deepEqual(getNotificationEmails('taxes', env, true), ['unfxckmarketing@gmail.com']);
+  assert.deepEqual(getNotificationEmails('taxes', env), ['unfxckmarketing@gmail.com', 'trevon@apextaxteam.com']);
+  assert.deepEqual(getNotificationEmails('cmd', env, true), ['cameron@axesagency.com']);
+  assert.deepEqual(getNotificationEmails('taxes', { UFYT_NOTIFICATION_EMAILS: 'staff@example.test' }, true), ['staff@example.test']);
+});
